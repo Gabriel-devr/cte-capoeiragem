@@ -83,11 +83,6 @@ export default async function middleware(request: NextRequest) {
     return supabaseResponse
   }
 
-  // Agrupamento de todas as rotas que são exclusivas para quem não está logado
-  const authRoutes = ['/signup', '/forgot-password']
-  const isAuthRoute = authRoutes.some(route => pathname.startsWith(route)) || pathname === '/'
-
-
   // regras de redirecionamento:
 
   // Acesso à raiz do site
@@ -122,11 +117,6 @@ export default async function middleware(request: NextRequest) {
       await supabase.auth.signOut()
       return redirectTo('/')
     }
-  }
-
-  // Pula as telas de login para quem já está logado
-  if (user && isAuthRoute && pathname !== '/dashboard') {
-    return redirectTo('/dashboard')
   }
 
   return supabaseResponse

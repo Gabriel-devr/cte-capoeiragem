@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -100,15 +99,6 @@ export function Login() {
               </div>
             </div>
 
-            <div className="flex justify-end">
-              <Link
-                href="/forgot-password"
-                className="text-sm text-accent hover:text-accent/80 transition-colors"
-              >
-                Esqueceu a senha?
-              </Link>
-            </div>
-
             <Button
               type="submit"
               disabled={isSubmitting}
@@ -120,18 +110,6 @@ export function Login() {
                 "Entrar"
               )}
             </Button>
-
-            <div className="text-center">
-              <span className="text-sm text-muted-foreground">
-                Não tem uma conta?{" "}
-              </span>
-              <Link
-                href="/signup"
-                className="text-sm text-accent hover:text-accent/80 transition-colors"
-              >
-                Criar conta
-              </Link>
-            </div>
           </form>
         </div>
       </motion.div>

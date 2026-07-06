@@ -3,20 +3,6 @@
 import { createClientServer, supabaseAdm } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-export async function resetPasswordForEmail(email: string) {
-    try {
-        const supabaseServer = await createClientServer();
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-        const { error } = await supabaseServer.auth.resetPasswordForEmail(email, {
-            redirectTo: `${siteUrl}/reset-password`,
-        });
-        if (error) return { result: "erro", details: error.message };
-        return { result: "sucesso" };
-    } catch (err: any) {
-        return { result: "erro", details: err.message };
-    }
-}
-
 export async function loginUser(email: string, password: string) {
     try {
         const supabaseServer = await createClientServer();
@@ -33,33 +19,6 @@ export async function updatePassword(newPassword: string) {
         const supabaseServer = await createClientServer();
         const { error } = await supabaseServer.auth.updateUser({ password: newPassword });
         if (error) return { result: "erro", details: error.message };
-        return { result: "sucesso" };
-    } catch (err: any) {
-        return { result: "erro", details: err.message };
-    }
-}
-
-export async function createUser(full_name: string, birth_date: string, email: string, password: string) {
-    try {
-        const supabaseServer = await createClientServer();
-
-        // Apenas cria o usuário auth e armazena os dados básicos nos metadados.
-        // O profile e o student são criados na primeira vez que o usuário fizer login
-        // (após confirmar o email), via ensureUserSetup, para evitar FK violation.
-        const { data: authData, error: authError } = await supabaseServer.auth.signUp({
-            email,
-            password,
-            options: {
-                data: {
-                    full_name,
-                    birth_date,   // guardado nos metadados para uso posterior
-                }
-            }
-        });
-
-        if (authError) return { result: "erro", details: authError.message };
-        if (!authData.user) return { result: "erro", details: "Erro ao criar usuário." };
-
         return { result: "sucesso" };
     } catch (err: any) {
         return { result: "erro", details: err.message };
