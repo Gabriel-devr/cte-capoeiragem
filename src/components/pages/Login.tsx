@@ -7,7 +7,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Logo } from "../Logo";
 import { CapoeiraCircle } from "../CapoeiraWave";
-import { Lock, Mail, Loader2 } from "lucide-react";
+import { Lock, Mail, Loader2, ShieldCheck } from "lucide-react";
 import { motion } from "motion/react";
 import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "sonner";
@@ -56,6 +56,13 @@ export function Login() {
         <div className="bg-white border border-border rounded-2xl shadow-xl p-6">
           <div className="flex justify-center mb-5">
             <Logo />
+          </div>
+
+          <div className="flex justify-center mb-4">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent bg-accent/10 border border-accent/20 rounded-full px-3 py-1">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Painel Administrativo
+            </span>
           </div>
 
           <h2 className="text-center text-foreground mb-5">
