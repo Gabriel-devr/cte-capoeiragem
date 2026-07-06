@@ -207,7 +207,7 @@ export function WhatsappCobranca() {
           <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
             <Send className="w-5 h-5 text-accent" /> Enviar cobrança
           </h3>
-          <Button variant="outline" size="sm" onClick={handleOpenSettings} className="gap-2">
+          <Button variant="outline" size="sm" onClick={handleOpenSettings} className="gap-2 cursor-pointer">
             <Settings className="w-4 h-4" /> Editar mensagem padrão
           </Button>
         </div>
@@ -244,6 +244,7 @@ export function WhatsappCobranca() {
                     <Checkbox
                       checked={selected.size === cobrancas.length && cobrancas.length > 0}
                       onCheckedChange={toggleSelectAll}
+                      className="cursor-pointer"
                     />
                   </TableHead>
                   <TableHead>Aluno</TableHead>
@@ -260,6 +261,7 @@ export function WhatsappCobranca() {
                       <Checkbox
                         checked={selected.has(item.student_id)}
                         onCheckedChange={() => toggleSelected(item.student_id)}
+                        className="cursor-pointer"
                       />
                     </TableCell>
                     <TableCell className="font-medium">{item.nickname || item.full_name}</TableCell>
@@ -274,7 +276,7 @@ export function WhatsappCobranca() {
                         size="icon"
                         title="Ver histórico de mensagens"
                         onClick={() => handleVerHistorico(item)}
-                        className="text-muted-foreground hover:text-accent"
+                        className="text-muted-foreground cursor-pointer"
                       >
                         <History className="w-4 h-4" />
                       </Button>
@@ -290,7 +292,7 @@ export function WhatsappCobranca() {
           <Button
             onClick={handleEnviar}
             disabled={isSending || !podeEnviar}
-            className="bg-accent hover:bg-accent/90 text-white"
+            className="bg-accent hover:bg-accent/90 text-white cursor-pointer"
           >
             {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4 mr-2" /> Enviar cobranças ({selected.size})</>}
           </Button>
@@ -318,8 +320,8 @@ export function WhatsappCobranca() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsSettingsOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSaveSettings} disabled={isSavingSettings} className="bg-accent hover:bg-accent/90 text-white">
+            <Button variant="outline" onClick={() => setIsSettingsOpen(false)} className="cursor-pointer">Cancelar</Button>
+            <Button onClick={handleSaveSettings} disabled={isSavingSettings} className="bg-accent hover:bg-accent/90 text-white cursor-pointer">
               {isSavingSettings ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-2" /> Salvar</>}
             </Button>
           </DialogFooter>

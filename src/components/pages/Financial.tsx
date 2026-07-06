@@ -183,10 +183,10 @@ export function Financial() {
 
       <Tabs defaultValue="transacoes">
         <TabsList>
-          <TabsTrigger value="transacoes" className="gap-2">
+          <TabsTrigger value="transacoes" className="gap-2 cursor-pointer">
             <Receipt className="w-4 h-4" /> Transações
           </TabsTrigger>
-          <TabsTrigger value="whatsapp" className="gap-2">
+          <TabsTrigger value="whatsapp" className="gap-2 cursor-pointer">
             <MessageSquare className="w-4 h-4" /> Cobranças via WhatsApp
           </TabsTrigger>
         </TabsList>
@@ -257,7 +257,7 @@ export function Financial() {
           <Button
             onClick={handleRegistrar}
             disabled={isSubmitting}
-            className="bg-accent hover:bg-accent/90 text-white w-full sm:w-auto shrink-0"
+            className="bg-accent hover:bg-accent/90 text-white w-full sm:w-auto shrink-0 cursor-pointer"
           >
             {isSubmitting ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -277,7 +277,7 @@ export function Financial() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-all ${
+              className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-all cursor-pointer ${
                 isActive
                   ? "bg-accent text-white border-accent"
                   : "bg-card text-muted-foreground border-border hover:border-accent/40"
@@ -410,7 +410,7 @@ export function Financial() {
                           size="sm"
                           onClick={handleSaveEdit}
                           disabled={isSavingEdit}
-                          className="text-green-600 hover:text-green-700 hover:bg-green-50 h-8 w-8 p-0"
+                          className="text-green-600 hover:text-green-700 hover:bg-green-50 h-8 w-8 p-0 cursor-pointer"
                           title="Salvar alterações"
                         >
                           {isSavingEdit
@@ -422,7 +422,7 @@ export function Financial() {
                           variant="ghost"
                           size="sm"
                           onClick={handleCancelEdit}
-                          className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
+                          className="text-muted-foreground hover:text-foreground h-8 w-8 p-0 cursor-pointer"
                           title="Cancelar edição"
                         >
                           <X className="w-4 h-4" />
@@ -437,7 +437,7 @@ export function Financial() {
                             size="sm"
                             onClick={() => handleMarcarPago(tx.id)}
                             disabled={markingId === tx.id}
-                            className="text-green-600 hover:text-green-700 hover:bg-green-50 h-8 w-8 p-0"
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50 h-8 w-8 p-0 cursor-pointer"
                             title="Confirmar pagamento"
                           >
                             {markingId === tx.id
@@ -450,7 +450,7 @@ export function Financial() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleStartEdit(tx)}
-                          className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 h-8 w-8 p-0"
+                          className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 h-8 w-8 p-0 cursor-pointer"
                           title="Editar cobrança"
                         >
                           <Pencil className="w-4 h-4" />
@@ -460,7 +460,7 @@ export function Financial() {
                           size="sm"
                           onClick={() => handleDelete(tx.id)}
                           disabled={deletingId === tx.id}
-                          className="text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
+                          className="text-destructive hover:bg-destructive/10 h-8 w-8 p-0 cursor-pointer"
                           title="Excluir cobrança"
                         >
                           {deletingId === tx.id
