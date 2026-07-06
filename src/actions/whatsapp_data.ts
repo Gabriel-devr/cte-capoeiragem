@@ -103,11 +103,11 @@ export async function listCobrancas() {
 }
 
 // Registra a cobrança (aluno + mensagem já com placeholders substituídos) e
-// dispara o webhook do n8n UMA ÚNICA VEZ nesse clique, mandando no corpo do
-// POST exatamente a lista de alunos selecionados (com o id do registro recém
-// criado). O n8n processa essa lista diretamente - não faz uma busca separada
-// por "pendentes" no banco, então nunca reenvia sobras de outro clique nem
-// deixa de processar alguém que foi selecionado agora.
+// dispara o webhook do n8n UMA ÚNICA VEZ nesse clique, só como "start" do
+// workflow - o corpo do POST não é mais a fonte dos dados a enviar. Do lado do
+// n8n, o workflow busca as linhas pendentes direto no Supabase (Get Many Rows
+// na view vw_cobrancas_agendadas_pendentes) e processa uma a uma com delay,
+// atualizando o status pra "sent"/"failed" depois de cada envio.
 // A URL do webhook fica em variável de ambiente (não é editável pelo admin
 // pela UI) porque é uma configuração de infraestrutura de quem sobe o projeto,
 // não algo que o cliente final deva mexer.
@@ -123,7 +123,7 @@ export async function enviarCobrancas(
 
     const hoje = new Date().toISOString().split("T")[0];
 
-    const { data: inseridos, error } = await supabase
+    const { error } = await supabase
       .from("whatsapp_cobrancas_agendadas")
       .insert(
         items.map((item) => ({
@@ -134,8 +134,7 @@ export async function enviarCobrancas(
           scheduled_date: hoje,
           status: "pending",
         }))
-      )
-      .select("id, full_name, telephone, mensagem");
+      );
 
     if (error) throw error;
     revalidatePath("/dashboard/account");
@@ -148,11 +147,7 @@ export async function enviarCobrancas(
     }
 
     try {
-      const response = await fetch(webhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(inseridos),
-      });
+      const response = await fetch(webhookUrl, { method: "POST" });
       if (!response.ok) {
         return { result: "erro", details: `As cobranças foram registradas, mas o webhook do N8N retornou status ${response.status}.` };
       }
