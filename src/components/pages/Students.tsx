@@ -216,7 +216,7 @@ export function Students() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Gestão de Alunos</h1>
-          <p className="text-muted-foreground">Cadastre e acompanhe seus alunos</p>
+          <p className="inline-block text-foreground bg-white/80 backdrop-blur-sm px-3 py-1 rounded-lg shadow-sm">Cadastre e acompanhe seus alunos</p>
         </div>
         <Button onClick={() => handleOpenModal()} className="bg-accent hover:bg-accent/90 text-white">
           <Plus className="w-4 h-4 mr-2" /> Novo Aluno

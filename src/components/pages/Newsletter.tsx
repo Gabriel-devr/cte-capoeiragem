@@ -161,7 +161,7 @@ export function Newsletter() {
       >
         <div>
           <h1 className="text-4xl font-bold text-foreground mb-3">Newsletter</h1>
-          <p className="text-lg text-muted-foreground">
+          <p className="inline-block text-lg text-foreground bg-white/80 backdrop-blur-sm px-3 py-1 rounded-lg shadow-sm">
             Explore nosso histórico de conteúdos sobre capoeira
           </p>
         </div>

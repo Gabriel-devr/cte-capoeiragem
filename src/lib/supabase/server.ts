@@ -31,6 +31,7 @@ export async function createClientServer() {
                     }
                 },
             },
+            cookieOptions: { name: "sb-admin-auth" },
         }
     )
 }

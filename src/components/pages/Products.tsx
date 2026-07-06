@@ -122,7 +122,7 @@ export function Products() {
       >
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">Gestão de Produtos</h1>
-          <p className="text-muted-foreground">
+          <p className="inline-block text-foreground bg-white/80 backdrop-blur-sm px-3 py-1 rounded-lg shadow-sm">
             Gerencie os produtos da CTE Capoeiragem
           </p>
         </div>

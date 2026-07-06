@@ -49,7 +49,7 @@ export function MyAccount() {
         animate={{ opacity: 1, y: 0 }}
       >
         <h1 className="text-3xl font-bold text-foreground mb-2">Minha Conta</h1>
-        <p className="text-muted-foreground">Configurações da sua conta de administrador</p>
+        <p className="inline-block text-foreground bg-white/80 backdrop-blur-sm px-3 py-1 rounded-lg shadow-sm">Configurações da sua conta de administrador</p>
       </motion.div>
 
       <motion.div
@@ -63,11 +63,10 @@ export function MyAccount() {
         </p>
       </motion.div>
 
-      {/* Configurações de Senha */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
+        transition={{ delay: 0.2 }}
         className="bg-card border border-border rounded-xl p-6 shadow-lg"
       >
         <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">

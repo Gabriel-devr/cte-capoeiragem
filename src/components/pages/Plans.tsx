@@ -148,7 +148,7 @@ export function Plans() {
       >
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">Gestão de Planos</h1>
-          <p className="text-muted-foreground">
+          <p className="inline-block text-foreground bg-white/80 backdrop-blur-sm px-3 py-1 rounded-lg shadow-sm">
             Gerencie os Planos da CTE Capoeiragem
           </p>
         </div>

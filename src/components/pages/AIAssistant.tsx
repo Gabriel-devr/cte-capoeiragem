@@ -2,78 +2,47 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion } from "motion/react";
-import { Send, Bot, User } from "lucide-react";
+import { Send, Bot, User, Loader2 } from "lucide-react";
+import { useChat } from "@ai-sdk/react";
+import { type UIMessage } from "ai";
+import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 
-interface Message {
-  id: number;
-  text: string;
-  sender: "user" | "bot";
-  timestamp: Date;
-}
+const WELCOME_MESSAGE: UIMessage = {
+  id: "welcome",
+  role: "assistant",
+  parts: [
+    {
+      type: "text",
+      text: "Olá! Sou o assistente virtual da CTE Capoeiragem. Posso consultar alunos, matrículas, planos, produtos e o financeiro. Como posso ajudar?",
+    },
+  ],
+};
 
 export function AIAssistant() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 1,
-      text: "Olá! Sou o assistente virtual da Capoeira Digital. Como posso ajudá-lo hoje?",
-      sender: "bot",
-      timestamp: new Date(),
-    },
-  ]);
+  const { messages, sendMessage, status, error, clearError } = useChat({
+    messages: [WELCOME_MESSAGE],
+  });
   const [inputValue, setInputValue] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const isLoading = status === "submitted" || status === "streaming";
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, status]);
+
+  useEffect(() => {
+    if (error) {
+      toast.error("Erro ao falar com o assistente: " + error.message);
+      clearError();
+    }
+  }, [error, clearError]);
 
   const handleSend = () => {
-    if (!inputValue.trim()) return;
-
-    const userMessage: Message = {
-      id: messages.length + 1,
-      text: inputValue,
-      sender: "user",
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
+    if (!inputValue.trim() || isLoading) return;
+    sendMessage({ text: inputValue });
     setInputValue("");
-
-    // Simulação de resposta do bot
-    setTimeout(() => {
-      const botMessage: Message = {
-        id: messages.length + 2,
-        text: getBotResponse(inputValue),
-        sender: "bot",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, botMessage]);
-    }, 1000);
-  };
-
-  const getBotResponse = (input: string): string => {
-    const lowerInput = input.toLowerCase();
-    
-    if (lowerInput.includes("horário") || lowerInput.includes("aula")) {
-      return "Nossas aulas acontecem de segunda a sexta, das 18h às 20h, e aos sábados das 10h às 12h. Qual dia você gostaria de participar?";
-    }
-    
-    if (lowerInput.includes("mensalidade") || lowerInput.includes("pagamento")) {
-      return "A mensalidade é de R$ 150,00. Você pode consultar o status do seu pagamento na seção Financeiro. Precisa de mais alguma informação?";
-    }
-    
-    if (lowerInput.includes("iniciante") || lowerInput.includes("começar")) {
-      return "Que ótimo! Para iniciantes, recomendamos começar com as aulas de fundamentos. Você pode fazer uma aula experimental gratuita. Gostaria de agendar?";
-    }
-    
-    return "Entendo! Posso te ajudar com informações sobre horários de aulas, mensalidades, eventos e muito mais. O que você gostaria de saber?";
   };
 
   return (
@@ -85,7 +54,7 @@ export function AIAssistant() {
         <h1 className="text-3xl font-bold text-foreground mb-2">
           Assistente IA
         </h1>
-        <p className="text-muted-foreground">
+        <p className="inline-block text-foreground bg-white/80 backdrop-blur-sm px-3 py-1 rounded-lg shadow-sm">
           Tire suas dúvidas sobre capoeira e gestão do CTE
         </p>
       </motion.div>
@@ -106,10 +75,10 @@ export function AIAssistant() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
               className={`flex gap-3 ${
-                message.sender === "user" ? "justify-end" : "justify-start"
+                message.role === "user" ? "justify-end" : "justify-start"
               }`}
             >
-              {message.sender === "bot" && (
+              {message.role !== "user" && (
                 <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center flex-shrink-0">
                   <Bot className="w-5 h-5 text-accent-foreground" />
                 </div>
@@ -117,27 +86,39 @@ export function AIAssistant() {
 
               <div
                 className={`max-w-[70%] rounded-2xl px-4 py-3 ${
-                  message.sender === "user"
+                  message.role === "user"
                     ? "bg-accent text-accent-foreground"
                     : "bg-muted text-foreground"
                 }`}
               >
-                <p className="text-sm">{message.text}</p>
-                <p className="text-xs opacity-60 mt-1">
-                  {message.timestamp.toLocaleTimeString("pt-BR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </p>
+                {message.parts.map((part, partIndex) =>
+                  part.type === "text" ? (
+                    <p key={partIndex} className="text-sm whitespace-pre-wrap">
+                      {part.text}
+                    </p>
+                  ) : null
+                )}
               </div>
 
-              {message.sender === "user" && (
+              {message.role === "user" && (
                 <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
                   <User className="w-5 h-5 text-secondary-foreground" />
                 </div>
               )}
             </motion.div>
           ))}
+
+          {isLoading && (
+            <div className="flex gap-3 justify-start">
+              <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center flex-shrink-0">
+                <Bot className="w-5 h-5 text-accent-foreground" />
+              </div>
+              <div className="max-w-[70%] rounded-2xl px-4 py-3 bg-muted text-foreground flex items-center">
+                <Loader2 className="w-4 h-4 animate-spin" />
+              </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
 
@@ -147,16 +128,21 @@ export function AIAssistant() {
             <Input
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleSend()}
+              onKeyDown={(e) => e.key === "Enter" && handleSend()}
               placeholder="Digite sua mensagem..."
               className="flex-1 bg-input-background border-border text-foreground"
+              disabled={isLoading}
             />
             <Button
               onClick={handleSend}
               className="bg-accent hover:bg-accent/90 text-accent-foreground"
-              disabled={!inputValue.trim()}
+              disabled={!inputValue.trim() || isLoading}
             >
-              <Send className="w-5 h-5" />
+              {isLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Send className="w-5 h-5" />
+              )}
             </Button>
           </div>
         </div>

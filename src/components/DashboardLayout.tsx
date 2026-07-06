@@ -65,11 +65,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         `}
       >
         {/* Logo */}
-        <div className="px-4 py-4 border-b border-border flex items-center justify-between overflow-hidden">
-          <Logo compact />
+        <div className="relative py-6 border-b border-border flex items-center justify-center overflow-hidden bg-[#333333]">
+          <Logo compact negative />
           <button
             onClick={() => setSidebarOpen(false)}
-            className="p-1 rounded-lg hover:bg-muted text-muted-foreground md:hidden shrink-0 ml-2"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-muted text-muted-foreground md:hidden shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -86,11 +86,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <li key={item.path}>
                   <Link
                     href={item.path}
+                    prefetch={false}
                     onClick={() => setSidebarOpen(false)}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${
                       isActive
-                        ? "bg-accent text-accent-foreground shadow-sm"
-                        : "text-foreground hover:bg-muted"
+                        ? "bg-[#FFCC00] text-[#1a1a1a] shadow-sm"
+                        : "text-foreground hover:bg-[#FFCC00] hover:text-[#1a1a1a]"
                     }`}
                   >
                     <Icon className="w-4 h-4 shrink-0" />
@@ -107,7 +108,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <Button
             onClick={handleLogout}
             variant="ghost"
-            className="w-full justify-start text-foreground hover:bg-muted px-3 py-2.5 text-sm h-auto"
+            className="w-full justify-start text-foreground hover:bg-destructive hover:text-destructive-foreground px-3 py-2.5 text-sm h-auto"
           >
             <LogOut className="w-4 h-4 mr-3 shrink-0" />
             Sair
@@ -129,7 +130,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <span className="text-sm font-semibold text-foreground tracking-wide">CTE Capoeiragem · Admin</span>
         </header>
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+        <main
+          className="flex-1 p-4 sm:p-6 lg:p-8 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: "url('/BG2.png')" }}
+        >
           {children}
         </main>
       </div>

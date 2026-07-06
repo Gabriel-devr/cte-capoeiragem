@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import {
   DollarSign, Plus, Trash2, CheckCircle, Clock,
-  Loader2, BadgeCheck, Pencil, X, Check
+  Loader2, BadgeCheck, Pencil, X, Check, Receipt, MessageSquare
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -12,6 +12,7 @@ import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 
 import {
   listTransactions,
@@ -22,6 +23,7 @@ import {
 } from "@/actions/financial_data";
 import { listStudent } from "@/actions/student_data";
 import { formatDateInput, toBRDate, toISODate } from "@/utils/formatters";
+import { WhatsappCobranca } from "./WhatsappCobranca";
 
 interface Transaction {
   id: string;
@@ -174,10 +176,22 @@ export function Financial() {
     <div className="space-y-8">
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="text-3xl font-bold text-foreground mb-2">Financeiro</h1>
-        <p className="text-muted-foreground">
+        <p className="inline-block text-foreground bg-white/80 backdrop-blur-sm px-3 py-1 rounded-lg shadow-sm">
           Registre e acompanhe os pagamentos dos alunos matriculados
         </p>
       </motion.div>
+
+      <Tabs defaultValue="transacoes">
+        <TabsList>
+          <TabsTrigger value="transacoes" className="gap-2">
+            <Receipt className="w-4 h-4" /> Transações
+          </TabsTrigger>
+          <TabsTrigger value="whatsapp" className="gap-2">
+            <MessageSquare className="w-4 h-4" /> Cobranças via WhatsApp
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="transacoes" className="space-y-8">
 
       {/* ── Formulário de nova cobrança ─────────────────────── */}
       <motion.div
@@ -463,6 +477,13 @@ export function Financial() {
           </Table>
         </motion.div>
       )}
+
+        </TabsContent>
+
+        <TabsContent value="whatsapp">
+          <WhatsappCobranca />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

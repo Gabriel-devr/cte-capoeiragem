@@ -214,7 +214,7 @@ export function Matriculas() {
       >
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">Matrículas</h1>
-          <p className="text-muted-foreground">Gerencie as matrículas dos alunos da CTE Capoeiragem</p>
+          <p className="inline-block text-foreground bg-white/80 backdrop-blur-sm px-3 py-1 rounded-lg shadow-sm">Gerencie as matrículas dos alunos da CTE Capoeiragem</p>
         </div>
         <Button onClick={() => openModal()} className="bg-accent hover:bg-accent/90 text-accent-foreground">
           <Plus className="w-5 h-5 mr-2" />
