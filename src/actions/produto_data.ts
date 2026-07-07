@@ -15,11 +15,11 @@ export async function createProduto(data: ProdutoPayload) {
         const supabase = await createClientServer();
         const guard = await assertAdmin(supabase);
         if (!guard.ok) return { result: "erro", details: guard.details };
-        const { error } = await supabase.from('produtos').insert(data);
+        const { data: produto, error } = await supabase.from('produtos').insert(data).select('id_produto').single();
         if (error) throw error;
 
-        revalidatePath('/dashboard/produtos');
-        return { result: "sucesso" };
+        revalidatePath('/dashboard/plans');
+        return { result: "sucesso", id_produto: produto.id_produto as string };
     } catch (err: any) {
         return { result: "erro", details: err.message };
     }
@@ -45,7 +45,7 @@ export async function updateProduto(id: string, data: Partial<ProdutoPayload>) {
         const { error } = await supabase.from('produtos').update(data).eq('id_produto', id);
         if (error) throw error;
 
-        revalidatePath('/dashboard/produtos');
+        revalidatePath('/dashboard/plans');
         return { result: "sucesso" };
     } catch (err: any) {
         return { result: "erro", details: err.message };
@@ -60,7 +60,7 @@ export async function deleteProduto(id: string) {
         const { error } = await supabase.from('produtos').delete().eq('id_produto', id);
         if (error) throw error;
 
-        revalidatePath('/dashboard/produtos');
+        revalidatePath('/dashboard/plans');
         return { result: "sucesso" };
     } catch (err: any) {
         return { result: "erro", details: err.message };

@@ -1,5 +1,6 @@
 "use server"
 
+import { randomUUID } from "crypto";
 import { createClientServer } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { assertAdmin } from "@/lib/authGuard";
@@ -14,7 +15,8 @@ export interface CobrancaItem {
   nickname: string | null;
   telephone: string | null;
   plano_nome: string;
-  valor: number;
+  valor_original: number;
+  valor_desconto: number | null;
 }
 
 export interface HistoricoMensagem {
@@ -92,7 +94,8 @@ export async function listCobrancas() {
         nickname: row.student.nickname,
         telephone: row.student.telephone,
         plano_nome: row.plano.nome_plano,
-        valor: Number(row.plano.preco_desconto ?? row.plano.preco_original),
+        valor_original: Number(row.plano.preco_original),
+        valor_desconto: row.plano.preco_desconto != null ? Number(row.plano.preco_desconto) : null,
       }))
       .sort((a: CobrancaItem, b: CobrancaItem) => a.full_name.localeCompare(b.full_name));
 
@@ -103,11 +106,16 @@ export async function listCobrancas() {
 }
 
 // Registra a cobrança (aluno + mensagem já com placeholders substituídos) e
-// dispara o webhook do n8n UMA ÚNICA VEZ nesse clique, só como "start" do
-// workflow - o corpo do POST não é mais a fonte dos dados a enviar. Do lado do
-// n8n, o workflow busca as linhas pendentes direto no Supabase (Get Many Rows
-// na view vw_cobrancas_agendadas_pendentes) e processa uma a uma com delay,
-// atualizando o status pra "sent"/"failed" depois de cada envio.
+// dispara o webhook do n8n. O corpo do POST não carrega os itens, só o
+// lote_id gerado pra esse clique - do lado do n8n, o workflow busca as
+// linhas pendentes direto no Supabase (Get Many Rows na view
+// vw_cobrancas_agendadas_pendentes) e processa uma a uma COM DELAY entre
+// cada envio (evita mandar tudo de uma vez e levar ban do WhatsApp).
+// O lote_id existe pra o Get Many Rows filtrar só as linhas DESSE disparo,
+// e não qualquer pendência antiga que ainda esteja com status "pending".
+// IMPORTANTE: depois de mandar cada mensagem, o n8n precisa atualizar aquela
+// linha pra status "sent" (Update Row). Sem esse passo, a mesma linha nunca
+// sai de "pending" e volta a ser reenviada em toda execução futura.
 // A URL do webhook fica em variável de ambiente (não é editável pelo admin
 // pela UI) porque é uma configuração de infraestrutura de quem sobe o projeto,
 // não algo que o cliente final deva mexer.
@@ -123,16 +131,37 @@ export async function enviarCobrancas(
 
     const hoje = new Date().toISOString().split("T")[0];
 
+    // Evita duplicar disparo pro mesmo aluno no mesmo dia (ex: admin clica
+    // "Enviar Cobranças" mais de uma vez antes do n8n processar a anterior).
+    const { data: jaPendentes, error: checkError } = await supabase
+      .from("whatsapp_cobrancas_agendadas")
+      .select("student_id")
+      .eq("scheduled_date", hoje)
+      .eq("status", "pending")
+      .in("student_id", items.map((item) => item.student_id));
+
+    if (checkError) throw checkError;
+
+    const idsJaPendentes = new Set((jaPendentes || []).map((r: any) => r.student_id));
+    const itemsParaEnviar = items.filter((item) => !idsJaPendentes.has(item.student_id));
+
+    if (itemsParaEnviar.length === 0) {
+      return { result: "erro", details: "Todos os alunos selecionados já têm uma cobrança de hoje aguardando envio." };
+    }
+
+    const loteId = randomUUID();
+
     const { error } = await supabase
       .from("whatsapp_cobrancas_agendadas")
       .insert(
-        items.map((item) => ({
+        itemsParaEnviar.map((item) => ({
           student_id: item.student_id,
           full_name: item.full_name,
           telephone: item.telephone,
           mensagem: item.mensagem,
           scheduled_date: hoje,
           status: "pending",
+          lote_id: loteId,
         }))
       );
 
@@ -147,7 +176,11 @@ export async function enviarCobrancas(
     }
 
     try {
-      const response = await fetch(webhookUrl, { method: "POST" });
+      const response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lote_id: loteId }),
+      });
       if (!response.ok) {
         return { result: "erro", details: `As cobranças foram registradas, mas o webhook do N8N retornou status ${response.status}.` };
       }
@@ -155,7 +188,12 @@ export async function enviarCobrancas(
       return { result: "erro", details: `As cobranças foram registradas, mas não foi possível acionar o envio automático: ${webhookErr.message}` };
     }
 
-    return { result: "sucesso", enviados: items.length };
+    const ignorados = items.length - itemsParaEnviar.length;
+    return {
+      result: "sucesso",
+      enviados: itemsParaEnviar.length,
+      ignorados,
+    };
   } catch (err: any) {
     return { result: "erro", details: err.message };
   }

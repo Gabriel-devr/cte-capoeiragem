@@ -108,18 +108,21 @@ export async function updateMatricula(id: string, data: Partial<MatriculaPayload
 
     if (error) throw error;
 
-    // Re-sincroniza produtos
-    await supabase.from("enrollment_products").delete().eq("enrollment_id", id);
+    // Só re-sincroniza produtos se a chamada informar produto_ids explicitamente
+    // (a tela de Matrículas não gerencia mais produtos avulsos).
+    if (data.produto_ids !== undefined) {
+      await supabase.from("enrollment_products").delete().eq("enrollment_id", id);
 
-    if (data.produto_ids && data.produto_ids.length > 0) {
-      const { error: prodError } = await supabase
-        .from("enrollment_products")
-        .insert(data.produto_ids.map((produto_id) => ({
-          enrollment_id: id,
-          produto_id,
-          quantity: 1,
-        })));
-      if (prodError) throw prodError;
+      if (data.produto_ids.length > 0) {
+        const { error: prodError } = await supabase
+          .from("enrollment_products")
+          .insert(data.produto_ids.map((produto_id) => ({
+            enrollment_id: id,
+            produto_id,
+            quantity: 1,
+          })));
+        if (prodError) throw prodError;
+      }
     }
 
     revalidatePath("/dashboard/matriculas");

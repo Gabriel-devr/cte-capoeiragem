@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import {
@@ -22,48 +23,33 @@ import {
 
 import { planoSchema, type PlanoFormData } from "@/utils/planoSchema";
 import { createPlano, listPlanos, updatePlano, deletePlano, listPeriodos } from "@/actions/plano_data";
+import type { Plano, Periodo } from "@/types/catalogo";
 
-interface Plan {
-  id_plano: string;
-  nome_plano: string;
-  tipo_plano: string; // UUID referenciando periodos
-  frequencia: number;
-  preco_original: number;
-  preco_desconto?: number;
-  periodos?: {
-    nome_periodo: string;
-  };
-}
-
-interface Period {
-  id_periodo: string;
-  nome_periodo: string;
-}
+const defaultValues: PlanoFormData = {
+  nome_plano: "",
+  tipo_plano: "",
+  frequencia: 1,
+  preco_original: "0",
+  preco_desconto: "",
+  tipo_produto: "",
+  descricao_produto: "",
+};
 
 export function Plans() {
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [periods, setPeriods] = useState<Period[]>([]);
+  const [plans, setPlans] = useState<Plano[]>([]);
+  const [periods, setPeriods] = useState<Periodo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
-  const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<Plano | null>(null);
 
   const form = useForm<PlanoFormData>({
     resolver: zodResolver(planoSchema),
-    defaultValues: {
-      nome_plano: "",
-      tipo_plano: "",
-      frequencia: 1,
-      preco_original: "0",
-      preco_desconto: "",
-    },
+    defaultValues,
   });
 
   const fetchData = async () => {
     setIsLoading(true);
-    const [plansRes, periodsRes] = await Promise.all([
-      listPlanos(),
-      listPeriodos(),
-    ]);
+    const [plansRes, periodsRes] = await Promise.all([listPlanos(), listPeriodos()]);
 
     if (plansRes.result === "sucesso") {
       setPlans(plansRes.planos || []);
@@ -80,33 +66,23 @@ export function Plans() {
 
   const onSubmit = async (data: PlanoFormData) => {
     try {
-      const payload = {
-        ...data,
-        preco_desconto: data.preco_desconto === undefined ? undefined : data.preco_desconto,
-      };
-
-      let res;
-      if (editingPlan) {
-        res = await updatePlano(editingPlan.id_plano, payload);
-      } else {
-        res = await createPlano(payload);
-      }
+      const res = editingPlan ? await updatePlano(editingPlan.id_plano, data) : await createPlano(data);
 
       if (res.result === "sucesso") {
         toast.success(editingPlan ? "Plano atualizado com sucesso!" : "Plano criado com sucesso!");
-        setIsPlanModalOpen(false);
+        setIsModalOpen(false);
         fetchData();
       } else {
         toast.error("Erro ao salvar plano: " + res.details);
       }
-    } catch (error) {
+    } catch {
       toast.error("Ocorreu um erro inesperado.");
     }
   };
 
   const handleDeletePlan = async (planId: string) => {
     if (!confirm("Tem certeza que deseja excluir este plano?")) return;
-    
+
     const res = await deletePlano(planId);
     if (res.result === "sucesso") {
       toast.success("Plano excluído com sucesso!");
@@ -116,7 +92,7 @@ export function Plans() {
     }
   };
 
-  const openPlanModal = (plan?: Plan) => {
+  const openPlanModal = (plan?: Plano) => {
     if (plan) {
       setEditingPlan(plan);
       form.reset({
@@ -125,18 +101,14 @@ export function Plans() {
         frequencia: plan.frequencia,
         preco_original: plan.preco_original.toString(),
         preco_desconto: plan.preco_desconto?.toString() || "",
+        tipo_produto: plan.produtos?.tipo_produto || "",
+        descricao_produto: plan.produtos?.descricao_produto || "",
       });
     } else {
       setEditingPlan(null);
-      form.reset({
-        nome_plano: "",
-        tipo_plano: "",
-        frequencia: 1,
-        preco_original: "0",
-        preco_desconto: "",
-      });
+      form.reset(defaultValues);
     }
-    setIsPlanModalOpen(true);
+    setIsModalOpen(true);
   };
 
   return (
@@ -186,6 +158,7 @@ export function Plans() {
                     <h3 className="text-xl font-bold text-foreground mb-1">{plan.nome_plano}</h3>
                     <p className="text-sm text-muted-foreground capitalize">
                       {plan.periodos?.nome_periodo || "N/A"}
+                      {plan.produtos?.tipo_produto ? ` · ${plan.produtos.tipo_produto}` : ""}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -218,6 +191,12 @@ export function Plans() {
                       </span>
                     </div>
                   </div>
+
+                  {plan.produtos?.descricao_produto && (
+                    <p className="text-sm text-foreground border-t border-border pt-3">
+                      {plan.produtos.descricao_produto}
+                    </p>
+                  )}
                 </div>
               </motion.div>
             ))}
@@ -232,8 +211,8 @@ export function Plans() {
         </div>
       )}
 
-      {/* Modal de Plano */}
-      <Dialog open={isPlanModalOpen} onOpenChange={setIsPlanModalOpen}>
+      {/* Modal de Plano (já inclui os campos de produto) */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-2">
@@ -357,10 +336,48 @@ export function Plans() {
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="tipo_produto"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="font-medium">Categoria do Produto</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="Ex: Assinatura"
+                          className="bg-input-background border-accent/20 focus:border-accent"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="descricao_produto"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-medium">Descrição do Produto</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        placeholder="Ex: Descrição detalhada exibida para o aluno"
+                        className="bg-input-background border-accent/20 focus:border-accent min-h-24"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <div className="flex justify-end gap-3 pt-6 border-t">
-                <Button type="button" variant="outline" onClick={() => setIsPlanModalOpen(false)}>Cancelar</Button>
-                <Button 
-                  type="submit" 
+                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+                <Button
+                  type="submit"
                   disabled={form.formState.isSubmitting}
                   className="bg-accent hover:bg-accent/90 text-white min-w-[100px]"
                 >

@@ -47,11 +47,17 @@ function formatValor(valor: number) {
   return `R$ ${valor.toFixed(2)}`;
 }
 
-function preencherTemplate(template: string, item: CobrancaItem) {
+type TipoValor = "desconto" | "original";
+
+function valorCobrado(item: CobrancaItem, tipoValor: TipoValor) {
+  return tipoValor === "desconto" ? item.valor_desconto ?? item.valor_original : item.valor_original;
+}
+
+function preencherTemplate(template: string, item: CobrancaItem, tipoValor: TipoValor) {
   return template
     .replace(/\{\{nome\}\}/g, item.nickname || item.full_name)
     .replace(/\{\{plano\}\}/g, item.plano_nome)
-    .replace(/\{\{valor\}\}/g, formatValor(item.valor));
+    .replace(/\{\{valor\}\}/g, formatValor(valorCobrado(item, tipoValor)));
 }
 
 export function WhatsappCobranca() {
@@ -65,6 +71,7 @@ export function WhatsappCobranca() {
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   const [mensagem, setMensagem] = useState(DEFAULT_MESSAGE_TEMPLATE);
+  const [tipoValor, setTipoValor] = useState<TipoValor>("desconto");
   const [isSending, setIsSending] = useState(false);
 
   const [historicoAluno, setHistoricoAluno] = useState<CobrancaItem | null>(null);
@@ -177,13 +184,14 @@ export function WhatsappCobranca() {
       student_id: item.student_id,
       full_name: item.full_name,
       telephone: item.telephone as string,
-      mensagem: preencherTemplate(mensagem, item),
+      mensagem: preencherTemplate(mensagem, item, tipoValor),
     }));
 
     const res = await enviarCobrancas(payload);
 
     if (res.result === "sucesso") {
-      toast.success(`Cobrança enviada para ${res.enviados} aluno(s)!`);
+      const ignoradosMsg = res.ignorados ? ` (${res.ignorados} já tinham cobrança de hoje pendente e foram ignorados)` : "";
+      toast.success(`Cobrança enviada para ${res.enviados} aluno(s)!${ignoradosMsg}`);
       setSelected(new Set());
     } else {
       toast.error("Erro ao enviar cobranças: " + res.details);
@@ -229,6 +237,33 @@ export function WhatsappCobranca() {
           </p>
         </div>
 
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">Valor a cobrar</label>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={tipoValor === "desconto" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setTipoValor("desconto")}
+              className={tipoValor === "desconto" ? "bg-accent hover:bg-accent/90 text-accent-foreground cursor-pointer" : "cursor-pointer"}
+            >
+              Com desconto
+            </Button>
+            <Button
+              type="button"
+              variant={tipoValor === "original" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setTipoValor("original")}
+              className={tipoValor === "original" ? "bg-accent hover:bg-accent/90 text-accent-foreground cursor-pointer" : "cursor-pointer"}
+            >
+              Valor integral
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Define qual valor entra no lugar de <code className="bg-muted px-1 rounded">{"{{valor}}"}</code> — vale pra todos os alunos selecionados neste envio.
+          </p>
+        </div>
+
         <div className="space-y-3 pt-2 border-t border-border">
           <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <Users className="w-4 h-4 text-accent" /> Selecione os alunos <span className="text-destructive">*</span>
@@ -266,7 +301,20 @@ export function WhatsappCobranca() {
                     </TableCell>
                     <TableCell className="font-medium">{item.nickname || item.full_name}</TableCell>
                     <TableCell>{item.plano_nome}</TableCell>
-                    <TableCell>{formatValor(item.valor)}</TableCell>
+                    <TableCell>
+                      {item.valor_desconto != null ? (
+                        <div className="flex flex-col leading-tight">
+                          <span className={tipoValor === "desconto" ? "font-semibold text-accent" : "text-muted-foreground line-through"}>
+                            {formatValor(item.valor_desconto)}
+                          </span>
+                          <span className={tipoValor === "original" ? "font-semibold text-accent" : "text-xs text-muted-foreground line-through"}>
+                            {formatValor(item.valor_original)}
+                          </span>
+                        </div>
+                      ) : (
+                        formatValor(item.valor_original)
+                      )}
+                    </TableCell>
                     <TableCell className={!item.telephone ? "text-destructive" : ""}>
                       {item.telephone ? formatPhone(item.telephone) : "Sem telefone"}
                     </TableCell>

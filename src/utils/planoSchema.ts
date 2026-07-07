@@ -6,6 +6,8 @@ export const planoSchema = z.object({
   frequencia: z.number().min(1, "Frequência é obrigatória"),
   preco_original: z.string().min(1, "Preço original é obrigatório"),
   preco_desconto: z.string().optional(),
+  tipo_produto: z.string().optional(),
+  descricao_produto: z.string().optional(),
 });
 
 export type PlanoFormData = z.infer<typeof planoSchema>;

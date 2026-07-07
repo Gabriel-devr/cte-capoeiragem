@@ -2,14 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { ClipboardList, Plus, Edit, XCircle, Save, Loader2, Package } from "lucide-react";
+import { ClipboardList, Plus, Edit, XCircle, Save, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
-import { Checkbox } from "../ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
@@ -21,15 +20,7 @@ import { matriculaSchema, type MatriculaFormData } from "@/utils/matriculaSchema
 import { createMatricula, listMatriculas, updateMatricula, cancelarMatricula } from "@/actions/matricula_data";
 import { listStudent } from "@/actions/student_data";
 import { listPlanos } from "@/actions/plano_data";
-import { listProdutos } from "@/actions/produto_data";
 import { formatDateInput, toBRDate, toISODate } from "@/utils/formatters";
-
-interface EnrollmentProduct {
-  id: string;
-  produto_id: string;
-  quantity: number;
-  produtos: { nome_produto: string } | null;
-}
 
 interface Matricula {
   id: string;
@@ -47,7 +38,6 @@ interface Matricula {
     preco_desconto: number | null;
     periodos: { nome_periodo: string } | null;
   } | null;
-  enrollment_products: EnrollmentProduct[];
 }
 
 interface Student {
@@ -61,11 +51,6 @@ interface Plano {
   nome_plano: string;
   preco_original: number;
   preco_desconto: number | null;
-}
-
-interface Produto {
-  id_produto: string;
-  nome_produto: string;
 }
 
 const statusConfig = {
@@ -89,12 +74,10 @@ export function Matriculas() {
   const [matriculas, setMatriculas]   = useState<Matricula[]>([]);
   const [students, setStudents]       = useState<Student[]>([]);
   const [planos, setPlanos]           = useState<Plano[]>([]);
-  const [produtos, setProdutos]       = useState<Produto[]>([]);
   const [isLoading, setIsLoading]     = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId]     = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [selectedProdutos, setSelectedProdutos] = useState<string[]>([]);
 
   const form = useForm<MatriculaFormData>({
     resolver: zodResolver(matriculaSchema),
@@ -110,31 +93,22 @@ export function Matriculas() {
 
   const fetchData = async () => {
     setIsLoading(true);
-    const [matriculasRes, studentsRes, planosRes, produtosRes] = await Promise.all([
+    const [matriculasRes, studentsRes, planosRes] = await Promise.all([
       listMatriculas(),
       listStudent(),
       listPlanos(),
-      listProdutos(),
     ]);
     if (matriculasRes.result === "sucesso") setMatriculas((matriculasRes.matriculas as Matricula[]) || []);
     if (studentsRes.result === "sucesso")   setStudents((studentsRes.students as Student[]) || []);
     if (planosRes.result === "sucesso")     setPlanos((planosRes.planos as Plano[]) || []);
-    if (produtosRes.result === "sucesso")   setProdutos((produtosRes.produtos as Produto[]) || []);
     setIsLoading(false);
   };
 
   useEffect(() => { fetchData(); }, []);
 
-  const toggleProduto = (id: string) => {
-    setSelectedProdutos((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
-    );
-  };
-
   const openModal = (matricula?: Matricula) => {
     if (matricula) {
       setEditingId(matricula.id);
-      setSelectedProdutos(matricula.enrollment_products?.map((ep) => ep.produto_id) ?? []);
       form.reset({
         student_id:  matricula.student_id,
         plano_id:    matricula.plano_id,
@@ -145,7 +119,6 @@ export function Matriculas() {
       });
     } else {
       setEditingId(null);
-      setSelectedProdutos([]);
       form.reset({
         student_id:  "",
         plano_id:    "",
@@ -166,11 +139,10 @@ export function Matriculas() {
   };
 
   const onSubmit = async (data: MatriculaFormData) => {
-    const payload = { 
-      ...data, 
+    const payload = {
+      ...data,
       start_date: toISODate(data.start_date),
-      end_date: data.end_date ? toISODate(data.end_date) : undefined, 
-      produto_ids: selectedProdutos 
+      end_date: data.end_date ? toISODate(data.end_date) : undefined,
     };
     const res = editingId
       ? await updateMatricula(editingId, payload)
@@ -244,7 +216,6 @@ export function Matriculas() {
                 <TableHead className="font-semibold">Aluno</TableHead>
                 <TableHead className="font-semibold">Plano</TableHead>
                 <TableHead className="font-semibold">Valor</TableHead>
-                <TableHead className="font-semibold">Produtos</TableHead>
                 <TableHead className="font-semibold">Início</TableHead>
                 <TableHead className="font-semibold">Status</TableHead>
                 <TableHead className="text-right font-semibold">Ações</TableHead>
@@ -273,20 +244,6 @@ export function Matriculas() {
                       </div>
                     </TableCell>
                     <TableCell className="font-semibold text-accent">{formatPrice(m.plano)}</TableCell>
-                    <TableCell>
-                      {m.enrollment_products?.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {m.enrollment_products.map((ep) => (
-                            <Badge key={ep.id} variant="outline" className="text-xs bg-muted/40">
-                              <Package className="w-2.5 h-2.5 mr-1" />
-                              {ep.produtos?.nome_produto ?? "—"}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
                     <TableCell className="text-sm">{formatDate(m.start_date)}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={`text-xs font-medium ${config.className}`}>
@@ -383,27 +340,6 @@ export function Matriculas() {
                   )}
                 />
               </div>
-
-              {/* Produtos */}
-              {produtos.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium mb-2">Produtos</p>
-                  <div className="border border-border rounded-lg divide-y divide-border max-h-40 overflow-y-auto">
-                    {produtos.map((p) => (
-                      <label
-                        key={p.id_produto}
-                        className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors"
-                      >
-                        <Checkbox
-                          checked={selectedProdutos.includes(p.id_produto)}
-                          onCheckedChange={() => toggleProduto(p.id_produto)}
-                        />
-                        <span className="text-sm">{p.nome_produto}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="start_date" render={({ field }) => (
