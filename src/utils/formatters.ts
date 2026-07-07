@@ -56,6 +56,24 @@ export const toISODate = (brDate: string | null | undefined) => {
 };
 
 /**
+ * Calcula a idade a partir de uma data de nascimento no formato DD/MM/AAAA
+ */
+export const calculateAge = (brDate: string | null | undefined): number | null => {
+  if (!brDate) return null;
+  const [day, month, year] = brDate.split("/");
+  if (!day || !month || !year || year.length < 4) return null;
+  const birth = new Date(Number(year), Number(month) - 1, Number(day));
+  if (isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const hasHadBirthdayThisYear =
+    today.getMonth() > birth.getMonth() ||
+    (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate());
+  if (!hasHadBirthdayThisYear) age--;
+  return age >= 0 ? age : null;
+};
+
+/**
  * Limpa toda formatação, deixando apenas números
  */
 export const stripNonDigits = (value: string) => {

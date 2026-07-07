@@ -12,6 +12,7 @@ export interface StudentPayload {
     birth_date?: string;
     place_of_birth?: string;
     uf?: string;
+    gender?: string;
     full_address?: string;
     neighborhood?: string;
     instagram?: string;
@@ -33,6 +34,7 @@ export interface StudentPayload {
         contact_name: string;
         relationship_degree: string;
         phone: string;
+        additional_info?: string;
     }>;
 }
 
@@ -52,6 +54,7 @@ export async function createStudent(data: StudentPayload) {
                 birth_date: data.birth_date || null,
                 place_of_birth: data.place_of_birth || null,
                 uf: data.uf || null,
+                gender: data.gender || null,
                 full_address: data.full_address || null,
                 neighborhood: data.neighborhood || null,
                 instagram: data.instagram || null,
@@ -124,12 +127,16 @@ export async function updateStudentIdentificacao(id: string, data: Partial<Stude
                 telephone: data.telephone || null,
                 birth_date: data.birth_date || null,
                 email: data.email || null,
+                place_of_birth: data.place_of_birth || null,
                 uf: data.uf || null,
+                gender: data.gender || null,
                 full_address: data.full_address || null,
                 neighborhood: data.neighborhood || null,
                 instagram: data.instagram || null,
                 shirt_size: data.shirt_size || null,
-                pants_size: data.pants_size || null
+                pants_size: data.pants_size || null,
+                rg: data.rg || null,
+                cpf: data.cpf || null
             })
             .eq('student_id', id);
 
@@ -141,7 +148,11 @@ export async function updateStudentIdentificacao(id: string, data: Partial<Stude
     }
 }
 
-export async function updateStudentHealth(student_id: string, healthData: StudentPayload['health']) {
+export async function updateStudentHealth(
+    student_id: string,
+    healthData: StudentPayload['health'],
+    emergencyContacts?: StudentPayload['emergency_contacts']
+) {
     try {
         const supabase = await createClientServer();
         const guard = await assertAdmin(supabase);
@@ -152,6 +163,22 @@ export async function updateStudentHealth(student_id: string, healthData: Studen
             .eq('student_id', student_id);
 
         if (error) throw error;
+
+        const { error: deleteError } = await supabase
+            .from('emergency_contacts')
+            .delete()
+            .eq('student_id', student_id);
+        if (deleteError) throw deleteError;
+
+        if (emergencyContacts && emergencyContacts.length > 0) {
+            const contactsToInsert = emergencyContacts.map(contact => ({
+                student_id,
+                ...contact
+            }));
+            const { error: contactsError } = await supabase.from('emergency_contacts').insert(contactsToInsert);
+            if (contactsError) throw contactsError;
+        }
+
         revalidatePath('/dashboard/alunos');
         return { result: "sucesso" };
     } catch (err: any) {

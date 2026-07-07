@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Users, Plus, Edit, Trash2, Search, Filter, Check, Phone, Loader2, AlertCircle } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
@@ -15,10 +15,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Textarea } from "../ui/textarea";
 import { Checkbox } from "../ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 import { studentSchema, type StudentFormData } from "@/utils/studentSchema";
 import { createStudent, listStudent, deleteStudent, updateStudentIdentificacao, updateStudentHealth } from "@/actions/student_data";
-import { formatPhone, formatCPF, formatDateInput, toBRDate, toISODate } from "@/utils/formatters";
+import { formatPhone, formatCPF, formatDateInput, toBRDate, toISODate, calculateAge } from "@/utils/formatters";
 
 const enrollmentStatusConfig: Record<string, { label: string; className: string }> = {
   active:    { label: "Ativo",     className: "bg-green-100 text-green-700 border-green-200" },
@@ -45,6 +46,7 @@ export function Students() {
       birth_date: "",
       place_of_birth: "",
       uf: "",
+      gender: "",
       full_address: "",
       neighborhood: "",
       instagram: "",
@@ -65,6 +67,14 @@ export function Students() {
       emergency_contacts: [],
     } as any,
   });
+
+  const { fields: contactFields, append: appendContact, remove: removeContact } = useFieldArray({
+    control: form.control,
+    name: "emergency_contacts",
+  });
+
+  const birthDateValue = useWatch({ control: form.control, name: "birth_date" });
+  const computedAge = calculateAge(birthDateValue);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -93,6 +103,7 @@ export function Students() {
         birth_date:     toBRDate(student.birth_date),
         place_of_birth: student.place_of_birth || "",
         uf:             student.uf || "",
+        gender:         student.gender || "",
         full_address:   student.full_address || "",
         neighborhood:   student.neighborhood || "",
         instagram:      student.instagram || "",
@@ -115,6 +126,7 @@ export function Students() {
               contact_name:        c.contact_name,
               relationship_degree: c.relationship_degree,
               phone:               c.phone,
+              additional_info:     c.additional_info || "",
             }))
           : [],
       });
@@ -122,7 +134,7 @@ export function Students() {
       setEditingStudent(null);
       form.reset({
         full_name: "", nickname: "", email: "", telephone: "",
-        birth_date: "", place_of_birth: "", uf: "", full_address: "",
+        birth_date: "", place_of_birth: "", uf: "", gender: "", full_address: "",
         neighborhood: "", instagram: "", shirt_size: "", pants_size: "",
         rg: "", cpf: "",
         health: {
@@ -315,6 +327,7 @@ export function Students() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-6">
               {currentStep === 1 && (
+                <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField control={form.control} name="full_name" render={({ field }) => (
                     <FormItem>
@@ -356,14 +369,62 @@ export function Students() {
                     <FormItem>
                       <FormLabel>Data de Nascimento</FormLabel>
                       <FormControl>
-                        <Input 
-                          {...field} 
-                          value={field.value || ""} 
+                        <Input
+                          {...field}
+                          value={field.value || ""}
                           placeholder="DD/MM/AAAA"
-                          className="bg-input-background" 
+                          className="bg-input-background"
                           onChange={handleFormattedChange("birth_date", formatDateInput)}
                         />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormItem>
+                    <FormLabel>Idade</FormLabel>
+                    <FormControl>
+                      <Input value={computedAge !== null ? `${computedAge} anos` : "—"} disabled className="bg-input-background" />
+                    </FormControl>
+                  </FormItem>
+                  <FormField control={form.control} name="place_of_birth" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Naturalidade</FormLabel>
+                      <FormControl><Input {...field} value={field.value || ""} className="bg-input-background" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="uf" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>UF</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value={field.value || ""}
+                          maxLength={2}
+                          placeholder="Ex: SP"
+                          className="bg-input-background"
+                          onChange={handleFormattedChange("uf", (val: string) => val.toUpperCase().slice(0, 2))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="gender" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gênero</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger className="bg-input-background">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Masculino">Masculino</SelectItem>
+                          <SelectItem value="Feminino">Feminino</SelectItem>
+                          <SelectItem value="Outro">Outro</SelectItem>
+                          <SelectItem value="Prefiro não informar">Prefiro não informar</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -396,6 +457,20 @@ export function Students() {
                       <FormMessage />
                     </FormItem>
                   )} />
+                  <FormField control={form.control} name="shirt_size" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tamanho da Camisa</FormLabel>
+                      <FormControl><Input {...field} value={field.value || ""} placeholder="Ex: M" className="bg-input-background" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="pants_size" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tamanho da Calça</FormLabel>
+                      <FormControl><Input {...field} value={field.value || ""} placeholder="Ex: 42" className="bg-input-background" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
                   <FormField control={form.control} name="full_address" render={({ field }) => (
                     <FormItem className="col-span-2">
                       <FormLabel>Endereço</FormLabel>
@@ -403,7 +478,83 @@ export function Students() {
                       <FormMessage />
                     </FormItem>
                   )} />
+                  <FormField control={form.control} name="neighborhood" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bairro</FormLabel>
+                      <FormControl><Input {...field} value={field.value || ""} className="bg-input-background" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
                 </div>
+
+                <div className="space-y-4 pt-4 border-t border-border">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-foreground">Contato de Emergência</h3>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => appendContact({ contact_name: "", relationship_degree: "", phone: "", additional_info: "" })}
+                    >
+                      <Plus className="w-4 h-4 mr-2" /> Adicionar Contato
+                    </Button>
+                  </div>
+
+                  {contactFields.length === 0 && (
+                    <p className="text-sm text-muted-foreground">Nenhum contato de emergência adicionado.</p>
+                  )}
+
+                  {contactFields.map((contactField, index) => (
+                    <div key={contactField.id} className="relative grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg border border-border">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 text-destructive"
+                        onClick={() => removeContact(index)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                      <FormField control={form.control} name={`emergency_contacts.${index}.contact_name`} render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nome *</FormLabel>
+                          <FormControl><Input {...field} value={field.value || ""} className="bg-input-background" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name={`emergency_contacts.${index}.relationship_degree`} render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Grau de Parentesco *</FormLabel>
+                          <FormControl><Input {...field} value={field.value || ""} className="bg-input-background" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name={`emergency_contacts.${index}.phone`} render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Telefone *</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value || ""}
+                              placeholder="(00) 00000-0000"
+                              className="bg-input-background"
+                              onChange={handleFormattedNestedChange(index, "phone", formatPhone)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name={`emergency_contacts.${index}.additional_info`} render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Informações Adicionais</FormLabel>
+                          <FormControl><Input {...field} value={field.value || ""} className="bg-input-background" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+                  ))}
+                </div>
+                </>
               )}
 
               {currentStep === 2 && (
@@ -428,7 +579,7 @@ export function Students() {
                   </div>
                   <FormField control={form.control} name="health.additional_info" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Informações Adicionais de Saúde</FormLabel>
+                      <FormLabel>Sobre os itens selecionados</FormLabel>
                       <FormControl>
                         <Textarea {...field} value={field.value || ""} className="bg-input-background min-h-32" />
                       </FormControl>

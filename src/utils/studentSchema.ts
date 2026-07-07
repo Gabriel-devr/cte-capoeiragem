@@ -8,6 +8,7 @@ export const studentSchema = z.object({
   birth_date: z.string().optional().or(z.literal("")),
   place_of_birth: z.string().optional(),
   uf: z.string().max(2, "UF deve ter 2 caracteres").optional().or(z.literal("")),
+  gender: z.string().optional(),
   full_address: z.string().optional(),
   neighborhood: z.string().optional(),
   instagram: z.string().optional(),
@@ -30,6 +31,7 @@ export const studentSchema = z.object({
       contact_name: z.string().min(1, "Nome do contato é obrigatório"),
       relationship_degree: z.string().min(1, "Parentesco é obrigatório"),
       phone: z.string().min(1, "Telefone é obrigatório"),
+      additional_info: z.string().optional(),
     })
   ).optional(),
 });
