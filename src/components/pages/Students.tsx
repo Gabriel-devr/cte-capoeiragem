@@ -467,7 +467,7 @@ export function Students() {
                   <FormField control={form.control} name="pants_size" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Tamanho da Calça</FormLabel>
-                      <FormControl><Input {...field} value={field.value || ""} placeholder="Ex: 42" className="bg-input-background" /></FormControl>
+                      <FormControl><Input {...field} value={field.value || ""} placeholder="Ex: M" className="bg-input-background" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
