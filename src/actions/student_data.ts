@@ -15,6 +15,7 @@ export interface StudentPayload {
     gender?: string;
     full_address?: string;
     neighborhood?: string;
+    cep?: string;
     instagram?: string;
     shirt_size?: string;
     pants_size?: string;
@@ -57,6 +58,7 @@ export async function createStudent(data: StudentPayload) {
                 gender: data.gender || null,
                 full_address: data.full_address || null,
                 neighborhood: data.neighborhood || null,
+                cep: data.cep || null,
                 instagram: data.instagram || null,
                 shirt_size: data.shirt_size || null,
                 pants_size: data.pants_size || null,
@@ -132,6 +134,7 @@ export async function updateStudentIdentificacao(id: string, data: Partial<Stude
                 gender: data.gender || null,
                 full_address: data.full_address || null,
                 neighborhood: data.neighborhood || null,
+                cep: data.cep || null,
                 instagram: data.instagram || null,
                 shirt_size: data.shirt_size || null,
                 pants_size: data.pants_size || null,

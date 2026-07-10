@@ -6,7 +6,6 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Logo } from "../Logo";
-import { CapoeiraCircle } from "../CapoeiraWave";
 import { Lock, Mail, Loader2, ShieldCheck } from "lucide-react";
 import { motion } from "motion/react";
 import { useAuth } from "../../contexts/AuthContext";
@@ -40,13 +39,10 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Elementos decorativos de fundo */}
-      <div className="absolute top-20 left-10 w-64 h-64 bg-accent/5 rounded-full blur-3xl" />
-      <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-      <CapoeiraCircle className="top-1/4 right-1/4 w-32 h-32" />
-      <CapoeiraCircle className="bottom-1/3 left-1/4 w-24 h-24" />
-
+    <div
+      className="min-h-screen bg-background bg-repeat flex items-center justify-center p-4 relative overflow-hidden"
+      style={{ backgroundImage: "url('/BG1.png')", backgroundSize: "480px auto" }}
+    >
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

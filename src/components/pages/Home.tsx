@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { Calendar, User as UserIcon, ArrowRight, Loader2, Newspaper } from "lucide-react";
-import Link from "next/link";
-import { ImageWithFallback } from "../fallback/ImageWithFallback";
+import { Loader2, Newspaper } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { listNewsletters } from "@/actions/newsletter_data";
+import { InformativoPost } from "../InformativoPost";
 
 interface Newsletter {
   id: string | number;
@@ -56,7 +55,7 @@ export function Home() {
             Olá, {user?.name || "Capoeirista"}!
           </h1>
           <p className="text-xl text-white/90">
-            Bem-vindo ao seu espaço de movimento e cultura
+            Bem-vindo ao seu espaço de movimento, arte e cultura.
           </p>
         </div>
 
@@ -80,7 +79,7 @@ export function Home() {
       >
         <h2 className="text-3xl font-bold text-foreground mb-6 flex items-center gap-2">
           <Newspaper className="text-accent w-8 h-8" />
-          Última Newsletter
+          Último Informativo
         </h2>
 
         {isLoading ? (
@@ -89,45 +88,7 @@ export function Home() {
             <p className="text-muted-foreground animate-pulse">Buscando as novidades da roda...</p>
           </div>
         ) : latestNewsletter ? (
-          <div className="bg-card border-2 border-border rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow group">
-            <div className="relative h-72 overflow-hidden">
-              <ImageWithFallback
-                src={latestNewsletter.image}
-                alt={latestNewsletter.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-            </div>
-
-            <div className="p-8">
-              <div className="flex items-center gap-6 text-sm text-muted-foreground mb-4">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  <span>{new Date(latestNewsletter.date).toLocaleDateString('pt-BR')}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <UserIcon className="w-4 h-4" />
-                  <span>{latestNewsletter.author}</span>
-                </div>
-              </div>
-
-              <h3 className="text-2xl font-bold text-foreground mb-4 group-hover:text-accent transition-colors">
-                {latestNewsletter.title}
-              </h3>
-
-              <p className="text-base text-muted-foreground mb-6 leading-relaxed line-clamp-3">
-                {latestNewsletter.excerpt}
-              </p>
-
-              <div className="flex items-center justify-between">
-                <span className="inline-block px-4 py-1 bg-accent/10 text-accent rounded-full text-sm font-semibold">
-                  {latestNewsletter.category}
-                </span>
-                <Link href="/dashboard/newsletter" className="flex items-center gap-2 text-accent font-bold hover:underline">
-                  Ler mais <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-            </div>
-          </div>
+          <InformativoPost newsletter={latestNewsletter} readMoreHref="/dashboard/newsletter" truncateExcerpt />
         ) : (
           <div className="h-48 flex flex-col items-center justify-center border-2 border-dashed border-border rounded-2xl bg-card/50">
             <p className="text-muted-foreground">Nenhuma notícia publicada ainda.</p>

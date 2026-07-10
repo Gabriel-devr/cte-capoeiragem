@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Plus, Calendar, User as UserIcon, Users, Trash2, Tag, Edit, Loader2, FileText } from "lucide-react";
+import { Plus, Users, Trash2, Edit, Loader2, FileText } from "lucide-react";
 import { ImageWithFallback } from "../fallback/ImageWithFallback";
+import { InformativoPost } from "../InformativoPost";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -66,7 +67,7 @@ export function Newsletter() {
     if (res.result === "sucesso") {
       setNewsletters(res.data || []);
     } else {
-      toast.error("Erro ao carregar newsletters: " + res.details);
+      toast.error("Erro ao carregar informativos: " + res.details);
     }
     setIsLoading(false);
   };
@@ -124,7 +125,7 @@ export function Newsletter() {
     }
 
     if (res.result === "sucesso") {
-      toast.success(editingNewsletter ? "Newsletter atualizada!" : "Newsletter criada!");
+      toast.success(editingNewsletter ? "Informativo atualizado!" : "Informativo criado!");
       handleCloseModal();
       fetchNewsletters();
     } else {
@@ -133,10 +134,10 @@ export function Newsletter() {
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm("Tem certeza que deseja excluir esta newsletter?")) {
+    if (confirm("Tem certeza que deseja excluir este informativo?")) {
       const res = await deleteNewsletter(id);
       if (res.result === "sucesso") {
-        toast.success("Newsletter excluída!");
+        toast.success("Informativo excluído!");
         fetchNewsletters();
       } else {
         toast.error("Erro ao excluir: " + res.details);
@@ -160,9 +161,9 @@ export function Newsletter() {
         className="flex justify-between items-start"
       >
         <div>
-          <h1 className="text-4xl font-bold text-foreground mb-3">Newsletter</h1>
+          <h1 className="text-4xl font-bold text-foreground mb-3">Informativo</h1>
           <p className="inline-block text-lg text-foreground bg-white/80 backdrop-blur-sm px-3 py-1 rounded-lg shadow-sm">
-            Explore nosso histórico de conteúdos sobre capoeira
+            Explore nosso histórico de conteúdos
           </p>
         </div>
         <Button
@@ -170,24 +171,24 @@ export function Newsletter() {
           className="bg-accent hover:bg-accent/90 text-white shadow-lg"
         >
           <Plus className="w-5 h-5 mr-2" />
-          Nova Newsletter
+          Novo Informativo
         </Button>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="flex flex-col items-center gap-8">
         <AnimatePresence>
           {!isLoading && newsletters.length === 0 ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="col-span-full flex flex-col items-center justify-center p-16 text-center border-2 border-dashed border-border rounded-3xl bg-card/30"
+              className="w-full flex flex-col items-center justify-center p-16 text-center border-2 border-dashed border-border rounded-3xl bg-card/30"
             >
               <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
                 <FileText className="w-10 h-10 text-muted-foreground" />
               </div>
-              <h3 className="text-2xl font-bold text-foreground mb-2">Nenhuma newsletter publicada ainda</h3>
+              <h3 className="text-2xl font-bold text-foreground mb-2">Nenhum informativo publicado ainda</h3>
               <p className="text-muted-foreground max-w-md mx-auto">
-                Clique no botão 'Nova Newsletter' no topo da página para criar sua primeira postagem e compartilhar com a comunidade.
+                Clique no botão 'Novo Informativo' no topo da página para criar sua primeira postagem e compartilhar com a comunidade.
               </p>
             </motion.div>
           ) : (
@@ -198,35 +199,29 @@ export function Newsletter() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-white border-2 border-border rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all hover:border-accent group"
+                className="w-full"
               >
-                <div className="relative h-56 overflow-hidden">
-                  <ImageWithFallback
-                    src={newsletter.image}
-                    alt={newsletter.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-
-                  {/* Action Buttons */}
-                  <div className="absolute top-3 right-3 flex gap-2">
-                    <button
-                      onClick={() => handleOpenModal(newsletter)}
-                      className="w-10 h-10 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center text-accent hover:bg-accent hover:text-white transition-all shadow-lg hover:scale-110"
-                      title="Editar newsletter"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(newsletter.id)}
-                      className="w-10 h-10 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center text-destructive hover:bg-destructive hover:text-white transition-all shadow-lg hover:scale-110"
-                      title="Excluir newsletter"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* Badge de público-alvo */}
-                  <div className="absolute top-3 left-3">
+                <InformativoPost
+                  newsletter={newsletter}
+                  headerActions={
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleOpenModal(newsletter)}
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-white transition-all"
+                        title="Editar informativo"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(newsletter.id)}
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-destructive hover:text-white transition-all"
+                        title="Excluir informativo"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  }
+                  imageBadge={
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shadow-md ${
                       newsletter.target_audience === 'active'
                         ? 'bg-emerald-500 text-white'
@@ -239,39 +234,8 @@ export function Newsletter() {
                         : newsletter.target_audience === 'inactive' ? 'Inativos'
                         : 'Todos'}
                     </span>
-                  </div>
-                </div>
-
-                <div className="p-8">
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      <span>{new Date(newsletter.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <UserIcon className="w-4 h-4" />
-                      <span>{newsletter.author}</span>
-                    </div>
-                  </div>
-
-                  <h3 className="text-xl font-bold text-foreground mb-3 group-hover:text-accent transition-colors">
-                    {newsletter.title}
-                  </h3>
-
-                  <p className="text-base text-muted-foreground mb-5 line-clamp-2">
-                    {newsletter.excerpt}
-                  </p>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-accent bg-accent/10 px-3 py-2 rounded-lg">
-                      <Tag className="w-4 h-4" />
-                      <span>{newsletter.category}</span>
-                    </div>
-                    <button className="text-base text-accent hover:text-accent/80 transition-colors font-medium">
-                      Ler mais →
-                    </button>
-                  </div>
-                </div>
+                  }
+                />
               </motion.div>
             ))
           )}
@@ -297,7 +261,7 @@ export function Newsletter() {
         </div>
       )}
 
-      {/* Modal de Criar/Editar Newsletter */}
+      {/* Modal de Criar/Editar Informativo */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -305,12 +269,12 @@ export function Newsletter() {
               {editingNewsletter ? (
                 <>
                   <Edit className="w-6 h-6 text-accent" />
-                  Editar Newsletter
+                  Editar Informativo
                 </>
               ) : (
                 <>
                   <Plus className="w-6 h-6 text-accent" />
-                  Nova Newsletter
+                  Novo Informativo
                 </>
               )}
             </DialogTitle>
@@ -320,7 +284,7 @@ export function Newsletter() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-6">
               <div className="bg-accent/5 border-l-4 border-accent p-4 rounded-r-lg">
                 <p className="text-sm text-muted-foreground">
-                  Preencha os campos abaixo para {editingNewsletter ? "atualizar" : "criar"} a newsletter
+                  Preencha os campos abaixo para {editingNewsletter ? "atualizar" : "criar"} o informativo
                 </p>
               </div>
 
@@ -330,7 +294,7 @@ export function Newsletter() {
                   name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-foreground font-medium">Título da Newsletter *</FormLabel>
+                      <FormLabel className="text-foreground font-medium">Título do Informativo *</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -420,7 +384,7 @@ export function Newsletter() {
                       <FormControl>
                         <Textarea
                           {...field}
-                          placeholder="Digite uma breve descrição do conteúdo da newsletter..."
+                          placeholder="Digite uma breve descrição do conteúdo do informativo..."
                           className="bg-input-background border-accent/20 focus:border-accent focus:ring-accent/20 min-h-32"
                           maxLength={200}
                         />
@@ -452,7 +416,7 @@ export function Newsletter() {
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
-                        Define quem poderá visualizar esta newsletter
+                        Define quem poderá visualizar este informativo
                       </p>
                       <FormMessage />
                     </FormItem>
@@ -496,7 +460,7 @@ export function Newsletter() {
                   ) : (
                     <>
                       <Plus className="w-4 h-4 mr-2" />
-                      Criar Newsletter
+                      Criar Informativo
                     </>
                   )}
                 </Button>

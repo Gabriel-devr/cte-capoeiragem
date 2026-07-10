@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 
 import { studentSchema, type StudentFormData } from "@/utils/studentSchema";
 import { createStudent, listStudent, deleteStudent, updateStudentIdentificacao, updateStudentHealth } from "@/actions/student_data";
-import { formatPhone, formatCPF, formatDateInput, toBRDate, toISODate, calculateAge } from "@/utils/formatters";
+import { formatPhone, formatCPF, formatCEP, formatDateInput, toBRDate, toISODate, calculateAge, fetchAddressByCEP } from "@/utils/formatters";
 
 const enrollmentStatusConfig: Record<string, { label: string; className: string }> = {
   active:    { label: "Ativo",     className: "bg-green-100 text-green-700 border-green-200" },
@@ -49,6 +49,7 @@ export function Students() {
       gender: "",
       full_address: "",
       neighborhood: "",
+      cep: "",
       instagram: "",
       shirt_size: "",
       pants_size: "",
@@ -94,7 +95,7 @@ export function Students() {
     setCurrentStep(1);
     if (student) {
       setEditingStudent(student.student_id);
-      const healthData = student.student_health?.[0] || {};
+      const healthData = student.student_health || {};
       form.reset({
         full_name:      student.full_name,
         nickname:       student.nickname || "",
@@ -106,6 +107,7 @@ export function Students() {
         gender:         student.gender || "",
         full_address:   student.full_address || "",
         neighborhood:   student.neighborhood || "",
+        cep:            formatCEP(student.cep || ""),
         instagram:      student.instagram || "",
         shirt_size:     student.shirt_size || "",
         pants_size:     student.pants_size || "",
@@ -135,7 +137,7 @@ export function Students() {
       form.reset({
         full_name: "", nickname: "", email: "", telephone: "",
         birth_date: "", place_of_birth: "", uf: "", gender: "", full_address: "",
-        neighborhood: "", instagram: "", shirt_size: "", pants_size: "",
+        neighborhood: "", cep: "", instagram: "", shirt_size: "", pants_size: "",
         rg: "", cpf: "",
         health: {
           has_special_needs: false, has_disease: false, medication_allergy: false,
@@ -154,6 +156,22 @@ export function Students() {
       const formatted = formatter(e.target.value);
       form.setValue(fieldToUpdate, formatted);
     };
+  };
+
+  const handleCEPChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCEP(e.target.value);
+    form.setValue("cep", formatted);
+
+    if (formatted.replace(/\D/g, "").length === 8) {
+      const address = await fetchAddressByCEP(formatted);
+      if (address) {
+        form.setValue("full_address", address.logradouro || "", { shouldValidate: true });
+        form.setValue("neighborhood", address.bairro || "", { shouldValidate: true });
+        form.setValue("uf", address.uf || "", { shouldValidate: true });
+      } else {
+        toast.error("CEP não encontrado");
+      }
+    }
   };
 
   const handleFormattedNestedChange = (index: number, fieldName: string, formatter: (val: string) => string) => {
@@ -468,6 +486,21 @@ export function Students() {
                     <FormItem>
                       <FormLabel>Tamanho da Calça</FormLabel>
                       <FormControl><Input {...field} value={field.value || ""} placeholder="Ex: M" className="bg-input-background" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="cep" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CEP</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value={field.value || ""}
+                          placeholder="00000-000"
+                          className="bg-input-background"
+                          onChange={handleCEPChange}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />

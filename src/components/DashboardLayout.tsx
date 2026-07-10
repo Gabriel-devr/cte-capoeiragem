@@ -33,13 +33,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   const menuItems = [
     { path: "/dashboard", icon: Home, label: "Home" },
-    { path: "/dashboard/students", icon: Users, label: "Gestão de Alunos" },
+    { path: "/dashboard/students", icon: Users, label: "Gestão de alunos" },
     { path: "/dashboard/matriculas", icon: ClipboardList, label: "Matrículas" },
-    { path: "/dashboard/plans", icon: CalendarCheck, label: "Planos e Produtos" },
+    { path: "/dashboard/plans", icon: CalendarCheck, label: "Planos e produtos" },
     { path: "/dashboard/financial", icon: DollarSign, label: "Financeiro" },
-    { path: "/dashboard/newsletter", icon: FileText, label: "Newsletter" },
-    { path: "/dashboard/ai-assistant", icon: MessageSquare, label: "IA Assistant" },
-    { path: "/dashboard/account", icon: User, label: "Minha Conta" },
+    { path: "/dashboard/newsletter", icon: FileText, label: "Informativo" },
+    { path: "/dashboard/ai-assistant", icon: MessageSquare, label: "IA assistant" },
+    { path: "/dashboard/account", icon: User, label: "Minha conta" },
   ];
 
   return (
@@ -129,8 +129,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         <main
-          className="flex-1 p-4 sm:p-6 lg:p-8 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: "url('/BG2.png')" }}
+          className="flex-1 p-4 sm:p-6 lg:p-8 bg-repeat"
+          style={{ backgroundImage: "url('/BG2.png')", backgroundSize: "480px auto" }}
         >
           {children}
         </main>

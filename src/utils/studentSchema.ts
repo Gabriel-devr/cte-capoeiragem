@@ -11,6 +11,7 @@ export const studentSchema = z.object({
   gender: z.string().optional(),
   full_address: z.string().optional(),
   neighborhood: z.string().optional(),
+  cep: z.string().optional(),
   instagram: z.string().optional(),
   shirt_size: z.string().optional(),
   pants_size: z.string().optional(),

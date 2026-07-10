@@ -80,3 +80,38 @@ export const stripNonDigits = (value: string) => {
   if (!value) return "";
   return value.replace(/\D/g, "");
 };
+
+/**
+ * Formata um CEP no padrão XXXXX-XXX
+ */
+export const formatCEP = (value: string) => {
+  if (!value) return "";
+  const numbers = value.replace(/\D/g, "");
+  return numbers.replace(/(\d{5})(\d{1,3})/, "$1-$2").slice(0, 9);
+};
+
+export interface CEPAddress {
+  logradouro: string;
+  bairro: string;
+  uf: string;
+  erro?: boolean;
+}
+
+/**
+ * Busca endereço a partir de um CEP usando a API ViaCEP.
+ * Retorna null se o CEP for inválido, não encontrado ou em caso de falha de rede.
+ */
+export const fetchAddressByCEP = async (cep: string): Promise<CEPAddress | null> => {
+  const numbers = stripNonDigits(cep);
+  if (numbers.length !== 8) return null;
+
+  try {
+    const res = await fetch(`https://viacep.com.br/ws/${numbers}/json/`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.erro) return null;
+    return data;
+  } catch {
+    return null;
+  }
+};
