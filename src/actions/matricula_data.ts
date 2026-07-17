@@ -12,6 +12,7 @@ export interface MatriculaPayload {
   status?:      "active" | "paused" | "cancelled";
   observacoes?: string;
   produto_ids?: string[];
+  taxa_matricula?: boolean;
 }
 
 export async function createMatricula(data: MatriculaPayload) {
@@ -44,6 +45,7 @@ export async function createMatricula(data: MatriculaPayload) {
         end_date:    data.end_date || null,
         status:      data.status ?? "active",
         observacoes: data.observacoes || null,
+        taxa_matricula: data.taxa_matricula ?? true,
       })
       .select("id")
       .single();
@@ -103,6 +105,7 @@ export async function updateMatricula(id: string, data: Partial<MatriculaPayload
         end_date:    data.end_date || null,
         status:      data.status,
         observacoes: data.observacoes || null,
+        taxa_matricula: data.taxa_matricula,
       })
       .eq("id", id);
 

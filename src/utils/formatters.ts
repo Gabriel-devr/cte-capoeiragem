@@ -74,6 +74,38 @@ export const calculateAge = (brDate: string | null | undefined): number | null =
 };
 
 /**
+ * Formata um input de preço digitado livremente para o padrão BR (1.234,56),
+ * inserindo os centavos e separadores de milhar conforme o usuário digita.
+ */
+export const formatCurrencyInput = (value: string) => {
+  const numbers = value.replace(/\D/g, "");
+  if (!numbers) return "";
+  const cents = numbers.replace(/^0+(?=\d)/, "").padStart(3, "0");
+  const intPart = cents.slice(0, -2);
+  const decPart = cents.slice(-2);
+  const withThousands = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${withThousands},${decPart}`;
+};
+
+/**
+ * Converte um preço formatado no padrão BR (1.234,56) para número (1234.56)
+ */
+export const parseCurrencyToNumber = (value: string | null | undefined): number | undefined => {
+  if (!value) return undefined;
+  const normalized = value.replace(/\./g, "").replace(",", ".");
+  const n = parseFloat(normalized);
+  return isNaN(n) ? undefined : n;
+};
+
+/**
+ * Formata um número como string no padrão BR para preencher um input de preço
+ */
+export const numberToCurrencyInput = (value: number | null | undefined): string => {
+  if (value === null || value === undefined) return "";
+  return value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+/**
  * Limpa toda formatação, deixando apenas números
  */
 export const stripNonDigits = (value: string) => {

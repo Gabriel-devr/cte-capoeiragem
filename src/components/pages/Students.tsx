@@ -20,6 +20,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { studentSchema, type StudentFormData } from "@/utils/studentSchema";
 import { createStudent, listStudent, deleteStudent, updateStudentIdentificacao, updateStudentHealth } from "@/actions/student_data";
 import { formatPhone, formatCPF, formatCEP, formatDateInput, toBRDate, toISODate, calculateAge, fetchAddressByCEP } from "@/utils/formatters";
+import { AulasAvulsas } from "./AulasAvulsas";
+import { AulaExperimental } from "./AulaExperimental";
 
 const enrollmentStatusConfig: Record<string, { label: string; className: string }> = {
   active:    { label: "Ativo",     className: "bg-green-100 text-green-700 border-green-200" },
@@ -53,6 +55,7 @@ export function Students() {
       instagram: "",
       shirt_size: "",
       pants_size: "",
+      babylook_size: "",
       rg: "",
       cpf: "",
       health: {
@@ -111,6 +114,7 @@ export function Students() {
         instagram:      student.instagram || "",
         shirt_size:     student.shirt_size || "",
         pants_size:     student.pants_size || "",
+        babylook_size:  student.babylook_size || "",
         rg:             student.rg || "",
         cpf:            student.cpf || "",
         health: {
@@ -137,7 +141,7 @@ export function Students() {
       form.reset({
         full_name: "", nickname: "", email: "", telephone: "",
         birth_date: "", place_of_birth: "", uf: "", gender: "", full_address: "",
-        neighborhood: "", cep: "", instagram: "", shirt_size: "", pants_size: "",
+        neighborhood: "", cep: "", instagram: "", shirt_size: "", pants_size: "", babylook_size: "",
         rg: "", cpf: "",
         health: {
           has_special_needs: false, has_disease: false, medication_allergy: false,
@@ -323,6 +327,11 @@ export function Students() {
         </div>
       )}
 
+      <div className="pt-4 border-t border-border grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <AulasAvulsas />
+        <AulaExperimental />
+      </div>
+
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -478,14 +487,73 @@ export function Students() {
                   <FormField control={form.control} name="shirt_size" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Tamanho da Camisa</FormLabel>
-                      <FormControl><Input {...field} value={field.value || ""} placeholder="Ex: M" className="bg-input-background" /></FormControl>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger className="bg-input-background">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="2 anos">2 anos</SelectItem>
+                          <SelectItem value="4 anos">4 anos</SelectItem>
+                          <SelectItem value="6 anos">6 anos</SelectItem>
+                          <SelectItem value="8 anos">8 anos</SelectItem>
+                          <SelectItem value="10 anos">10 anos</SelectItem>
+                          <SelectItem value="12 anos">12 anos</SelectItem>
+                          <SelectItem value="P adulto">P adulto</SelectItem>
+                          <SelectItem value="M adulto">M adulto</SelectItem>
+                          <SelectItem value="G adulto">G adulto</SelectItem>
+                          <SelectItem value="GG adulto">GG adulto</SelectItem>
+                          <SelectItem value="EXG adulto">EXG adulto</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="pants_size" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Tamanho da Calça</FormLabel>
-                      <FormControl><Input {...field} value={field.value || ""} placeholder="Ex: M" className="bg-input-background" /></FormControl>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger className="bg-input-background">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="2 anos">2 anos</SelectItem>
+                          <SelectItem value="4 anos">4 anos</SelectItem>
+                          <SelectItem value="6 anos">6 anos</SelectItem>
+                          <SelectItem value="8 anos">8 anos</SelectItem>
+                          <SelectItem value="10 anos">10 anos</SelectItem>
+                          <SelectItem value="12 anos">12 anos</SelectItem>
+                          <SelectItem value="PP adulto">PP adulto</SelectItem>
+                          <SelectItem value="P adulto">P adulto</SelectItem>
+                          <SelectItem value="M adulto">M adulto</SelectItem>
+                          <SelectItem value="G adulto">G adulto</SelectItem>
+                          <SelectItem value="GG adulto">GG adulto</SelectItem>
+                          <SelectItem value="EXG adulto">EXG adulto</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="babylook_size" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tamanho de Babylook</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger className="bg-input-background">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="P adulto">P adulto</SelectItem>
+                          <SelectItem value="M adulto">M adulto</SelectItem>
+                          <SelectItem value="G adulto">G adulto</SelectItem>
+                          <SelectItem value="GG adulto">GG adulto</SelectItem>
+                          <SelectItem value="EXG adulto">EXG adulto</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )} />

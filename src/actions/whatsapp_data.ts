@@ -17,6 +17,7 @@ export interface CobrancaItem {
   plano_nome: string;
   valor_original: number;
   valor_desconto: number | null;
+  valor_familia: number | null;
 }
 
 export interface HistoricoMensagem {
@@ -80,7 +81,7 @@ export async function listCobrancas() {
       .select(`
         student_id,
         student (student_id, full_name, nickname, telephone),
-        plano (nome_plano, preco_original, preco_desconto)
+        plano (nome_plano, preco_original, preco_desconto, preco_familia)
       `)
       .eq("status", "active");
 
@@ -96,6 +97,7 @@ export async function listCobrancas() {
         plano_nome: row.plano.nome_plano,
         valor_original: Number(row.plano.preco_original),
         valor_desconto: row.plano.preco_desconto != null ? Number(row.plano.preco_desconto) : null,
+        valor_familia: row.plano.preco_familia != null ? Number(row.plano.preco_familia) : null,
       }))
       .sort((a: CobrancaItem, b: CobrancaItem) => a.full_name.localeCompare(b.full_name));
 

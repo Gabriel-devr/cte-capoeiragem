@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { Textarea } from "../ui/textarea";
+import { Checkbox } from "../ui/checkbox";
 import { Input } from "../ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 
@@ -30,6 +31,7 @@ interface Matricula {
   end_date: string | null;
   status: "active" | "paused" | "cancelled" | null;
   observacoes: string | null;
+  taxa_matricula: boolean | null;
   student: { student_id: string; full_name: string; nickname: string | null } | null;
   plano: {
     id_plano: string;
@@ -88,6 +90,7 @@ export function Matriculas() {
       end_date:    "",
       status:      "active",
       observacoes: "",
+      taxa_matricula: true,
     },
   });
 
@@ -116,6 +119,7 @@ export function Matriculas() {
         end_date:    toBRDate(matricula.end_date) || "",
         status:      matricula.status ?? "active",
         observacoes: matricula.observacoes || "",
+        taxa_matricula: matricula.taxa_matricula ?? true,
       });
     } else {
       setEditingId(null);
@@ -126,6 +130,7 @@ export function Matriculas() {
         end_date:    "",
         status:      "active",
         observacoes: "",
+        taxa_matricula: true,
       });
     }
     setIsModalOpen(true);
@@ -186,11 +191,11 @@ export function Matriculas() {
       >
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">Matrículas</h1>
-          <p className="inline-block text-foreground bg-white/80 backdrop-blur-sm px-3 py-1 rounded-lg shadow-sm">Gerencie as matrículas dos alunos da CTE Capoeiragem</p>
+          <p className="inline-block text-foreground bg-white/80 backdrop-blur-sm px-3 py-1 rounded-lg shadow-sm">Gerencie as matrículas dos alunos da Escola CTE Capoeiragem</p>
         </div>
         <Button onClick={() => openModal()} className="bg-accent hover:bg-accent/90 text-accent-foreground">
           <Plus className="w-5 h-5 mr-2" />
-          Nova Matrícula
+          Nova matrícula
         </Button>
       </motion.div>
 
@@ -285,7 +290,7 @@ export function Matriculas() {
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-2">
               <ClipboardList className="w-6 h-6 text-accent" />
-              {editingId ? "Editar Matrícula" : "Nova Matrícula"}
+              {editingId ? "Editar matrícula" : "Nova matrícula"}
             </DialogTitle>
           </DialogHeader>
           <Form {...form}>
@@ -341,10 +346,26 @@ export function Matriculas() {
                 />
               </div>
 
+              <FormField
+                control={form.control}
+                name="taxa_matricula"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between bg-accent/10 border border-accent/20 rounded-lg px-4 py-3 gap-3">
+                    <div className="flex items-center gap-2">
+                      <FormControl>
+                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                      <FormLabel className="font-medium text-foreground !mt-0">Cobrar taxa única de matrícula</FormLabel>
+                    </div>
+                    <span className="font-semibold text-accent">R$ 45,00</span>
+                  </FormItem>
+                )}
+              />
+
               <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="start_date" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Data de Início</FormLabel>
+                    <FormLabel>Data de início</FormLabel>
                     <FormControl>
                       <Input 
                         {...field} 
@@ -359,7 +380,7 @@ export function Matriculas() {
                 )} />
                 <FormField control={form.control} name="end_date" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Data de Fim (Opcional)</FormLabel>
+                    <FormLabel>Data de fim (opcional)</FormLabel>
                     <FormControl>
                       <Input 
                         {...field} 

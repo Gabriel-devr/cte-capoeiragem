@@ -7,6 +7,7 @@ export const matriculaSchema = z.object({
   end_date:    z.string().optional().or(z.literal("")),
   status:      z.enum(["active", "paused", "cancelled"]).default("active"),
   observacoes: z.string().optional(),
+  taxa_matricula: z.boolean().default(true),
 });
 
 export type MatriculaFormData = z.infer<typeof matriculaSchema>;

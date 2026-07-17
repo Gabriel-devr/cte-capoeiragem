@@ -9,8 +9,13 @@ export interface PlanoPayload {
     nome_plano: string;
     tipo_plano: string;
     frequencia: number;
+    turmas?: string[];
+    nucleo: "minimundo" | "matriz";
+    gratuidade?: boolean;
+    bolsa_parcial?: boolean;
     preco_original: number;
     preco_desconto?: number;
+    preco_familia?: number;
     tipo_produto?: string;
     descricao_produto?: string;
 }
@@ -21,7 +26,7 @@ export async function createPlano(data: PlanoPayload) {
         const guard = await assertAdmin(supabase);
         if (!guard.ok) return { result: "erro", details: guard.details };
 
-        const { nome_plano, tipo_plano, frequencia, preco_original, preco_desconto, tipo_produto, descricao_produto } = data;
+        const { nome_plano, tipo_plano, frequencia, turmas, nucleo, gratuidade, bolsa_parcial, preco_original, preco_desconto, preco_familia, tipo_produto, descricao_produto } = data;
 
         const produtoRes = await createProduto({
             nome_produto: nome_plano,
@@ -36,8 +41,13 @@ export async function createPlano(data: PlanoPayload) {
             nome_plano,
             tipo_plano,
             frequencia,
+            turmas: turmas || [],
+            nucleo,
+            gratuidade: gratuidade || false,
+            bolsa_parcial: bolsa_parcial || false,
             preco_original,
             preco_desconto,
+            preco_familia,
             produto_id: produtoRes.id_produto,
         });
 

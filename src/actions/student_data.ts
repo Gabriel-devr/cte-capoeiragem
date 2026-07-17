@@ -19,6 +19,7 @@ export interface StudentPayload {
     instagram?: string;
     shirt_size?: string;
     pants_size?: string;
+    babylook_size?: string;
     rg?: string;
     cpf?: string;
     health: {
@@ -62,6 +63,7 @@ export async function createStudent(data: StudentPayload) {
                 instagram: data.instagram || null,
                 shirt_size: data.shirt_size || null,
                 pants_size: data.pants_size || null,
+                babylook_size: data.babylook_size || null,
                 rg: data.rg || null,
                 cpf: data.cpf || null
             })
@@ -138,6 +140,7 @@ export async function updateStudentIdentificacao(id: string, data: Partial<Stude
                 instagram: data.instagram || null,
                 shirt_size: data.shirt_size || null,
                 pants_size: data.pants_size || null,
+                babylook_size: data.babylook_size || null,
                 rg: data.rg || null,
                 cpf: data.cpf || null
             })

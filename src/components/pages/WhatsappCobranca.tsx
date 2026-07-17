@@ -47,10 +47,18 @@ function formatValor(valor: number) {
   return `R$ ${valor.toFixed(2)}`;
 }
 
-type TipoValor = "desconto" | "original";
+type TipoValor = "desconto" | "original" | "familia";
+
+function valorDisponivel(item: CobrancaItem, tipoValor: TipoValor): boolean {
+  if (tipoValor === "desconto") return item.valor_desconto != null;
+  if (tipoValor === "familia") return item.valor_familia != null;
+  return true;
+}
 
 function valorCobrado(item: CobrancaItem, tipoValor: TipoValor) {
-  return tipoValor === "desconto" ? item.valor_desconto ?? item.valor_original : item.valor_original;
+  if (tipoValor === "desconto") return item.valor_desconto ?? item.valor_original;
+  if (tipoValor === "familia") return item.valor_familia ?? item.valor_original;
+  return item.valor_original;
 }
 
 function preencherTemplate(template: string, item: CobrancaItem, tipoValor: TipoValor) {
@@ -109,20 +117,35 @@ export function WhatsappCobranca() {
     fetchData();
   }, []);
 
-  const toggleSelected = (studentId: string) => {
+  const selecionaveis = cobrancas.filter((c) => valorDisponivel(c, tipoValor));
+
+  const handleSetTipoValor = (novoTipo: TipoValor) => {
+    setTipoValor(novoTipo);
+    // Remove da seleção alunos cujo plano não tem esse tipo de valor cadastrado.
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(studentId)) next.delete(studentId);
-      else next.add(studentId);
+      for (const c of cobrancas) {
+        if (next.has(c.student_id) && !valorDisponivel(c, novoTipo)) next.delete(c.student_id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelected = (item: CobrancaItem) => {
+    if (!valorDisponivel(item, tipoValor)) return;
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(item.student_id)) next.delete(item.student_id);
+      else next.add(item.student_id);
       return next;
     });
   };
 
   const toggleSelectAll = () => {
-    if (selected.size === cobrancas.length) {
+    if (selected.size === selecionaveis.length && selecionaveis.length > 0) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(cobrancas.map((c) => c.student_id)));
+      setSelected(new Set(selecionaveis.map((c) => c.student_id)));
     }
   };
 
@@ -244,7 +267,7 @@ export function WhatsappCobranca() {
               type="button"
               variant={tipoValor === "desconto" ? "default" : "outline"}
               size="sm"
-              onClick={() => setTipoValor("desconto")}
+              onClick={() => handleSetTipoValor("desconto")}
               className={tipoValor === "desconto" ? "bg-accent hover:bg-accent/90 text-accent-foreground cursor-pointer" : "cursor-pointer"}
             >
               Com desconto
@@ -253,10 +276,19 @@ export function WhatsappCobranca() {
               type="button"
               variant={tipoValor === "original" ? "default" : "outline"}
               size="sm"
-              onClick={() => setTipoValor("original")}
+              onClick={() => handleSetTipoValor("original")}
               className={tipoValor === "original" ? "bg-accent hover:bg-accent/90 text-accent-foreground cursor-pointer" : "cursor-pointer"}
             >
               Valor integral
+            </Button>
+            <Button
+              type="button"
+              variant={tipoValor === "familia" ? "default" : "outline"}
+              size="sm"
+              onClick={() => handleSetTipoValor("familia")}
+              className={tipoValor === "familia" ? "bg-accent hover:bg-accent/90 text-accent-foreground cursor-pointer" : "cursor-pointer"}
+            >
+              Preço família
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -277,8 +309,9 @@ export function WhatsappCobranca() {
                 <TableRow>
                   <TableHead className="w-10">
                     <Checkbox
-                      checked={selected.size === cobrancas.length && cobrancas.length > 0}
+                      checked={selected.size === selecionaveis.length && selecionaveis.length > 0}
                       onCheckedChange={toggleSelectAll}
+                      disabled={selecionaveis.length === 0}
                       className="cursor-pointer"
                     />
                   </TableHead>
@@ -290,29 +323,43 @@ export function WhatsappCobranca() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {cobrancas.map((item) => (
-                  <TableRow key={item.student_id}>
+                {cobrancas.map((item) => {
+                  const disponivel = valorDisponivel(item, tipoValor);
+                  return (
+                  <TableRow key={item.student_id} className={!disponivel ? "opacity-50" : undefined}>
                     <TableCell>
                       <Checkbox
                         checked={selected.has(item.student_id)}
-                        onCheckedChange={() => toggleSelected(item.student_id)}
+                        onCheckedChange={() => toggleSelected(item)}
+                        disabled={!disponivel}
+                        title={!disponivel ? "Este plano não tem esse tipo de valor cadastrado" : undefined}
                         className="cursor-pointer"
                       />
                     </TableCell>
                     <TableCell className="font-medium">{item.nickname || item.full_name}</TableCell>
                     <TableCell>{item.plano_nome}</TableCell>
                     <TableCell>
-                      {item.valor_desconto != null ? (
-                        <div className="flex flex-col leading-tight">
-                          <span className={tipoValor === "desconto" ? "font-semibold text-accent" : "text-muted-foreground line-through"}>
-                            {formatValor(item.valor_desconto)}
-                          </span>
-                          <span className={tipoValor === "original" ? "font-semibold text-accent" : "text-xs text-muted-foreground line-through"}>
-                            {formatValor(item.valor_original)}
-                          </span>
-                        </div>
+                      {!disponivel ? (
+                        <span className="text-xs text-destructive">Sem valor cadastrado</span>
                       ) : (
-                        formatValor(item.valor_original)
+                      <div className="flex flex-col leading-tight gap-0.5">
+                        {(
+                          [
+                            { key: "desconto", value: item.valor_desconto },
+                            { key: "original", value: item.valor_original },
+                            { key: "familia", value: item.valor_familia },
+                          ] as { key: TipoValor; value: number | null }[]
+                        )
+                          .filter((v) => v.value != null)
+                          .map(({ key, value }) => (
+                            <span
+                              key={key}
+                              className={tipoValor === key ? "font-semibold text-accent" : "text-xs text-muted-foreground line-through"}
+                            >
+                              {formatValor(value as number)}
+                            </span>
+                          ))}
+                      </div>
                       )}
                     </TableCell>
                     <TableCell className={!item.telephone ? "text-destructive" : ""}>
@@ -330,7 +377,8 @@ export function WhatsappCobranca() {
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           )}

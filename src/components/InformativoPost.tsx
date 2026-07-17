@@ -107,6 +107,7 @@ export function InformativoPost({ newsletter, readMoreHref, truncateExcerpt, hea
           day: "2-digit",
           month: "long",
           year: "numeric",
+          timeZone: "UTC",
         })}
       </p>
     </div>

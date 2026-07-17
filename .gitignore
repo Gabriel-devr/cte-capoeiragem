@@ -13,10 +13,9 @@ out/
 build/
 dist/
 
-# ==============================================
-# VARIÁVEIS DE AMBIENTE — NUNCA SUBIR!
-# ==============================================
+
 .env
+.env*
 .env.local
 .env.development
 .env.development.local
@@ -24,11 +23,44 @@ dist/
 .env.test.local
 .env.production
 .env.production.local
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+*.jks
+*.ppk
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+*.pgpass
+.npmrc
+.netrc
+.aws/
+.ssh/
+credentials.json
+service-account*.json
+*-credentials.json
+secrets/
+secrets.*
+*.sqlite
+*.sqlite3
+*.db
 
 # ==============================================
-# SUPABASE
+# SUPABASE E SCRIPTS SQL 
 # ==============================================
 .supabase/
+*.sql
+
+# ==============================================
+# CLAUDE CODE
+# ==============================================
+.claude/
+.mcp.json
+CLAUDE.local.md
 
 # ==============================================
 # TYPESCRIPT
@@ -52,6 +84,7 @@ pnpm-debug.log*
 .cache/
 .turbo/
 .vercel/
+.vercel
 .eslintcache
 .stylelintcache
 
@@ -98,12 +131,3 @@ $RECYCLE.BIN/
 # ==============================================
 coverage/
 .nyc_output/
-
-# ==============================================
-# MISC
-# ==============================================
-*.pem
-*.key
-*.cert
-.vercel
-.env*

@@ -79,7 +79,7 @@ export function Home() {
       >
         <h2 className="text-3xl font-bold text-foreground mb-6 flex items-center gap-2">
           <Newspaper className="text-accent w-8 h-8" />
-          Último Informativo
+          Informativo
         </h2>
 
         {isLoading ? (
