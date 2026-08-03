@@ -1,19 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Send, Save, Loader2, Users, Settings, History } from "lucide-react";
+import { Send, Loader2, Users, History } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "../ui/button";
-import { Textarea } from "../ui/textarea";
 import { Checkbox } from "../ui/checkbox";
 import { Badge } from "../ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
 import {
-  getWhatsappSettings,
-  updateWhatsappSettings,
   listCobrancas,
   enviarCobrancas,
   listHistoricoAluno,
@@ -21,20 +18,7 @@ import {
   type HistoricoMensagem,
 } from "@/actions/whatsapp_data";
 import { formatPhone, toBRDate } from "@/utils/formatters";
-
-// Mesmo texto do default definido em supabase_whatsapp_settings.sql. Serve de
-// fallback aqui pro admin já visualizar/editar o padrão mesmo antes da tabela
-// whatsapp_settings existir ou de qualquer configuração ter sido salva.
-const DEFAULT_MESSAGE_TEMPLATE = `Olá, {{nome}}! Tudo bem? 🤸‍♂️
-
-Passando para lembrar que a mensalidade do seu plano no CTE Capoeiragem está próxima do vencimento.
-
-💰 Valor: {{valor}}
-💰 Chave Pix:
-
-Após realizar o pagamento, por favor, envie o comprovante por aqui para darmos baixa no sistema.
-
-Se tiver qualquer dúvida ou se o pagamento já foi realizado, pode desconsiderar esta mensagem. Estamos à disposição! Axé! ✊🙏`;
+import { META_TEMPLATE_COBRANCA } from "@/utils/whatsappTemplates";
 
 const statusConfig: Record<HistoricoMensagem["status"], { label: string; className: string }> = {
   pending:   { label: "Pendente",  className: "bg-yellow-100 text-yellow-700 border-yellow-200" },
@@ -61,24 +45,11 @@ function valorCobrado(item: CobrancaItem, tipoValor: TipoValor) {
   return item.valor_original;
 }
 
-function preencherTemplate(template: string, item: CobrancaItem, tipoValor: TipoValor) {
-  return template
-    .replace(/\{\{nome\}\}/g, item.nickname || item.full_name)
-    .replace(/\{\{plano\}\}/g, item.plano_nome)
-    .replace(/\{\{valor\}\}/g, formatValor(valorCobrado(item, tipoValor)));
-}
-
 export function WhatsappCobranca() {
   const [cobrancas, setCobrancas] = useState<CobrancaItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
 
-  const [template, setTemplate] = useState(DEFAULT_MESSAGE_TEMPLATE);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [templateDraft, setTemplateDraft] = useState(DEFAULT_MESSAGE_TEMPLATE);
-  const [isSavingSettings, setIsSavingSettings] = useState(false);
-
-  const [mensagem, setMensagem] = useState(DEFAULT_MESSAGE_TEMPLATE);
   const [tipoValor, setTipoValor] = useState<TipoValor>("desconto");
   const [isSending, setIsSending] = useState(false);
 
@@ -88,21 +59,7 @@ export function WhatsappCobranca() {
 
   const fetchData = async () => {
     setIsLoading(true);
-    const [settingsRes, cobrancasRes] = await Promise.all([
-      getWhatsappSettings(),
-      listCobrancas(),
-    ]);
-
-    if (settingsRes.result === "sucesso" && settingsRes.settings) {
-      const savedTemplate = settingsRes.settings.message_template || DEFAULT_MESSAGE_TEMPLATE;
-      setTemplate(savedTemplate);
-      setTemplateDraft(savedTemplate);
-      setMensagem(savedTemplate);
-    } else {
-      // Sem configuração salva ainda (ex: tabela não criada) - mostra o padrão
-      // mesmo assim, pra o admin já visualizar e poder editar.
-      toast.error("Erro ao carregar configurações: " + settingsRes.details);
-    }
+    const cobrancasRes = await listCobrancas();
 
     if (cobrancasRes.result === "sucesso" && cobrancasRes.cobrancas) {
       setCobrancas(cobrancasRes.cobrancas);
@@ -149,24 +106,6 @@ export function WhatsappCobranca() {
     }
   };
 
-  const handleOpenSettings = () => {
-    setTemplateDraft(template);
-    setIsSettingsOpen(true);
-  };
-
-  const handleSaveSettings = async () => {
-    setIsSavingSettings(true);
-    const res = await updateWhatsappSettings({ message_template: templateDraft });
-    if (res.result === "sucesso") {
-      toast.success("Mensagem padrão salva com sucesso!");
-      setTemplate(templateDraft);
-      setIsSettingsOpen(false);
-    } else {
-      toast.error("Erro ao salvar: " + res.details);
-    }
-    setIsSavingSettings(false);
-  };
-
   const handleVerHistorico = async (item: CobrancaItem) => {
     setHistoricoAluno(item);
     setIsLoadingHistorico(true);
@@ -180,19 +119,13 @@ export function WhatsappCobranca() {
     setIsLoadingHistorico(false);
   };
 
-  const mensagemValida = mensagem.trim().length > 0;
-  const podeEnviar = mensagemValida && selected.size > 0;
+  const podeEnviar = selected.size > 0;
 
   const handleEnviar = async () => {
     const selecionados = cobrancas.filter((c) => selected.has(c.student_id));
 
     if (selecionados.length === 0) {
       toast.error("Selecione ao menos um aluno.");
-      return;
-    }
-
-    if (!mensagemValida) {
-      toast.error("Escreva a mensagem que será enviada.");
       return;
     }
 
@@ -207,7 +140,7 @@ export function WhatsappCobranca() {
       student_id: item.student_id,
       full_name: item.full_name,
       telephone: item.telephone as string,
-      mensagem: preencherTemplate(mensagem, item, tipoValor),
+      valor: valorCobrado(item, tipoValor),
     }));
 
     const res = await enviarCobrancas(payload);
@@ -238,25 +171,17 @@ export function WhatsappCobranca() {
           <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
             <Send className="w-5 h-5 text-accent" /> Enviar cobrança
           </h3>
-          <Button variant="outline" size="sm" onClick={handleOpenSettings} className="gap-2 cursor-pointer">
-            <Settings className="w-4 h-4" /> Editar mensagem padrão
-          </Button>
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">
-            Mensagem <span className="text-destructive">*</span>
-          </label>
-          <Textarea
-            value={mensagem}
-            onChange={(e) => setMensagem(e.target.value)}
-            rows={6}
-            className="bg-input-background"
-          />
+          <label className="text-sm font-medium text-foreground">Mensagem (template aprovado na Meta)</label>
+          <div className="bg-muted border border-border rounded-lg p-3 text-sm text-foreground whitespace-pre-wrap">
+            {META_TEMPLATE_COBRANCA}
+          </div>
           <p className="text-xs text-muted-foreground">
-            Use <code className="bg-muted px-1 rounded">{"{{nome}}"}</code>,{" "}
-            <code className="bg-muted px-1 rounded">{"{{plano}}"}</code> e{" "}
-            <code className="bg-muted px-1 rounded">{"{{valor}}"}</code> — serão substituídos por aluno.
+            Esse texto é fixo — é o template de cobrança aprovado no WhatsApp Business, não dá pra editar por aqui.
+            <code className="bg-background px-1 rounded mx-1">{"{{1}}"}</code> vira o primeiro nome do aluno e{" "}
+            <code className="bg-background px-1 rounded mx-1">{"{{2}}"}</code> vira o valor escolhido abaixo.
           </p>
         </div>
 
@@ -292,7 +217,7 @@ export function WhatsappCobranca() {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Define qual valor entra no lugar de <code className="bg-muted px-1 rounded">{"{{valor}}"}</code> — vale pra todos os alunos selecionados neste envio.
+            Define qual valor entra no lugar de <code className="bg-muted px-1 rounded">{"{{2}}"}</code> — vale pra todos os alunos selecionados neste envio.
           </p>
         </div>
 
@@ -394,35 +319,6 @@ export function WhatsappCobranca() {
           </Button>
         </div>
       </div>
-
-      {/* Modal: editar mensagem padrão */}
-      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Editar mensagem padrão</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-2">
-            <Textarea
-              value={templateDraft}
-              onChange={(e) => setTemplateDraft(e.target.value)}
-              rows={8}
-              className="bg-input-background"
-            />
-            <p className="text-xs text-muted-foreground">
-              Esse é o texto usado como ponto de partida sempre que você for enviar uma cobrança.
-              Alterar aqui não muda o texto de cobranças já enviadas.
-            </p>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsSettingsOpen(false)} className="cursor-pointer">Cancelar</Button>
-            <Button onClick={handleSaveSettings} disabled={isSavingSettings} className="bg-accent hover:bg-accent/90 text-white cursor-pointer">
-              {isSavingSettings ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-2" /> Salvar</>}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Modal: histórico de mensagens do aluno */}
       <Dialog open={!!historicoAluno} onOpenChange={(open) => !open && setHistoricoAluno(null)}>

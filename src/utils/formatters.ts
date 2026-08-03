@@ -11,6 +11,22 @@ export const formatPhone = (value: string) => {
 };
 
 /**
+ * Normaliza um telefone de aluno pro mesmo formato do wa_id que o WhatsApp
+ * usa (dígitos + DDI 55, sem o 9 extra do celular - a Cloud API manda o
+ * wa_id de números BR já sem esse dígito). Precisa ficar consistente com a
+ * normalização equivalente feita em SQL (coluna gerada whatsapp_id do
+ * student) e no workflow n8n de recebimento, senão o mesmo contato vira
+ * duas conversas diferentes.
+ */
+export const buildWaId = (telephone: string | null | undefined): string | null => {
+  if (!telephone) return null;
+  const digits = telephone.replace(/\D/g, "");
+  if (!digits) return null;
+  const local = digits.length === 11 && digits[2] === "9" ? digits.slice(0, 2) + digits.slice(3) : digits;
+  return `55${local}`;
+};
+
+/**
  * Formata um CPF no padrão XXX.XXX.XXX-XX
  */
 export const formatCPF = (value: string) => {

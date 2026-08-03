@@ -4,10 +4,8 @@ import { randomUUID } from "crypto";
 import { createClientServer } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { assertAdmin } from "@/lib/authGuard";
-
-export interface WhatsappSettings {
-  message_template: string;
-}
+import { logOutboundCobranca } from "./whatsapp_messages_data";
+import { renderTemplateCobranca } from "@/utils/whatsappTemplates";
 
 export interface CobrancaItem {
   student_id: string;
@@ -26,47 +24,6 @@ export interface HistoricoMensagem {
   scheduled_date: string;
   status: "pending" | "sent" | "failed" | "cancelled";
   sent_at: string | null;
-}
-
-export async function getWhatsappSettings() {
-  try {
-    const supabase = await createClientServer();
-    const guard = await assertAdmin(supabase);
-    if (!guard.ok) return { result: "erro", details: guard.details };
-
-    const { data, error } = await supabase
-      .from("whatsapp_settings")
-      .select("message_template")
-      .eq("id", 1)
-      .single();
-
-    if (error) throw error;
-    return { result: "sucesso", settings: data as WhatsappSettings };
-  } catch (err: any) {
-    return { result: "erro", details: err.message };
-  }
-}
-
-export async function updateWhatsappSettings(data: WhatsappSettings) {
-  try {
-    const supabase = await createClientServer();
-    const guard = await assertAdmin(supabase);
-    if (!guard.ok) return { result: "erro", details: guard.details };
-
-    const { error } = await supabase
-      .from("whatsapp_settings")
-      .update({
-        message_template: data.message_template,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", 1);
-
-    if (error) throw error;
-    revalidatePath("/dashboard/account");
-    return { result: "sucesso" };
-  } catch (err: any) {
-    return { result: "erro", details: err.message };
-  }
 }
 
 // Alunos com matrícula ativa, prontos para receber cobrança via WhatsApp.
@@ -122,7 +79,7 @@ export async function listCobrancas() {
 // pela UI) porque é uma configuração de infraestrutura de quem sobe o projeto,
 // não algo que o cliente final deva mexer.
 export async function enviarCobrancas(
-  items: { student_id: string; full_name: string; telephone: string; mensagem: string }[]
+  items: { student_id: string; full_name: string; telephone: string; valor: number }[]
 ) {
   try {
     const supabase = await createClientServer();
@@ -153,14 +110,26 @@ export async function enviarCobrancas(
 
     const loteId = randomUUID();
 
+    // Mensagem renderizada a partir do template aprovado na Meta (único
+    // texto que reflete o que o cliente de fato recebe hoje - não existe
+    // mais template livre editável pelo admin). Calculada uma vez por item e
+    // reaproveitada tanto no histórico de cobranças quanto no espelho
+    // unificado da tela Mensagens, pra não correr risco dos dois textos
+    // divergirem.
+    const itemsComMensagem = itemsParaEnviar.map((item) => ({
+      ...item,
+      mensagem: renderTemplateCobranca(item.full_name.split(" ")[0], item.valor),
+    }));
+
     const { error } = await supabase
       .from("whatsapp_cobrancas_agendadas")
       .insert(
-        itemsParaEnviar.map((item) => ({
+        itemsComMensagem.map((item) => ({
           student_id: item.student_id,
           full_name: item.full_name,
           telephone: item.telephone,
           mensagem: item.mensagem,
+          valor: item.valor,
           scheduled_date: hoje,
           status: "pending",
           lote_id: loteId,
@@ -169,6 +138,21 @@ export async function enviarCobrancas(
 
     if (error) throw error;
     revalidatePath("/dashboard/account");
+
+    // Espelha cada cobrança no histórico unificado de conversas (tela
+    // Mensagens), pra o gestor ver o que foi mandado pra cada aluno junto
+    // com as respostas dele. Best-effort - não pode travar a régua de
+    // cobrança em si.
+    await Promise.all(
+      itemsComMensagem.map((item) =>
+        logOutboundCobranca({
+          student_id: item.student_id,
+          telephone: item.telephone,
+          display_name: item.full_name,
+          content: item.mensagem,
+        })
+      )
+    );
 
     const webhookUrl = process.env.WHATSAPP_N8N_WEBHOOK_URL;
 
