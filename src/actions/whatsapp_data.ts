@@ -6,6 +6,77 @@ import { revalidatePath } from "next/cache";
 import { assertAdmin } from "@/lib/authGuard";
 import { logOutboundCobranca } from "./whatsapp_messages_data";
 import { renderTemplateCobranca } from "@/utils/whatsappTemplates";
+import { buildWaId } from "@/utils/formatters";
+import { sendTemplateMessage } from "@/lib/whatsapp/client";
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createClientServer>>;
+
+interface AgendamentoParaEnvio {
+  id: string;
+  telephone: string | null;
+  full_name: string;
+  valor: number;
+  mirror_message_id: string | null;
+}
+
+// Quantos envios simultâneos por lote - a escola tem ~80 alunos ativos e a
+// proprietária pode disparar cobrança pra todos de uma vez, então o envio não pode
+// ser sequencial (80 requisições em série arriscam estourar o limite de execução da
+// Server Action no plano Hobby da Vercel). Lotes de 10 em paralelo processam os 80
+// em poucos segundos, bem longe de qualquer rate limit real da Graph API.
+const WHATSAPP_SEND_CONCURRENCY = Number(process.env.WHATSAPP_SEND_CONCURRENCY) || 10;
+
+async function processarEnvioCobranca(row: AgendamentoParaEnvio, supabase: SupabaseServerClient) {
+  try {
+    const to = buildWaId(row.telephone);
+    const primeiroNome = row.full_name.split(" ")[0];
+
+    const sendResult = to
+      ? await sendTemplateMessage({
+          to,
+          templateName: "cobranca_mensalidade_aluno",
+          languageCode: "pt_BR",
+          bodyParams: [primeiroNome, Number(row.valor).toFixed(2)],
+        })
+      : { ok: false as const, error: "Telefone inválido." };
+
+    const status = sendResult.ok ? "sent" : "failed";
+    const sentAt = new Date().toISOString();
+
+    await supabase
+      .from("whatsapp_cobrancas_agendadas")
+      .update({
+        status,
+        sent_at: sentAt,
+        ...(sendResult.ok ? { whatsapp_message_id: sendResult.whatsappMessageId } : {}),
+      })
+      .eq("id", row.id);
+
+    // Reflete o mesmo resultado na linha espelho de whatsapp_messages (tela
+    // Mensagens), senão ela fica presa em "pending" pra sempre mesmo com a
+    // cobrança já enviada/falhada de verdade.
+    if (row.mirror_message_id) {
+      await supabase
+        .from("whatsapp_messages")
+        .update({
+          status,
+          ...(sendResult.ok ? { whatsapp_message_id: sendResult.whatsappMessageId } : {}),
+        })
+        .eq("id", row.mirror_message_id);
+    }
+  } catch (err) {
+    console.error(`Falha ao processar envio de cobrança (id ${row.id}):`, err);
+    try {
+      await supabase
+        .from("whatsapp_cobrancas_agendadas")
+        .update({ status: "failed", sent_at: new Date().toISOString() })
+        .eq("id", row.id);
+    } catch {
+      // Melhor esforço - se nem essa atualização for possível, a linha fica
+      // "pending" e vai aparecer pro admin reenviar manualmente depois.
+    }
+  }
+}
 
 export interface CobrancaItem {
   student_id: string;
@@ -64,20 +135,12 @@ export async function listCobrancas() {
   }
 }
 
-// Registra a cobrança (aluno + mensagem já com placeholders substituídos) e
-// dispara o webhook do n8n. O corpo do POST não carrega os itens, só o
-// lote_id gerado pra esse clique - do lado do n8n, o workflow busca as
-// linhas pendentes direto no Supabase (Get Many Rows na view
-// vw_cobrancas_agendadas_pendentes) e processa uma a uma COM DELAY entre
-// cada envio (evita mandar tudo de uma vez e levar ban do WhatsApp).
-// O lote_id existe pra o Get Many Rows filtrar só as linhas DESSE disparo,
-// e não qualquer pendência antiga que ainda esteja com status "pending".
-// IMPORTANTE: depois de mandar cada mensagem, o n8n precisa atualizar aquela
-// linha pra status "sent" (Update Row). Sem esse passo, a mesma linha nunca
-// sai de "pending" e volta a ser reenviada em toda execução futura.
-// A URL do webhook fica em variável de ambiente (não é editável pelo admin
-// pela UI) porque é uma configuração de infraestrutura de quem sobe o projeto,
-// não algo que o cliente final deva mexer.
+// Registra a cobrança (aluno + mensagem já com placeholders substituídos) e envia
+// via WhatsApp Cloud API na hora, em lotes concorrentes (ver
+// WHATSAPP_SEND_CONCURRENCY acima) - sem fila/cron externo, porque o volume atual
+// (dezenas de alunos por disparo) termina em poucos segundos. O lote_id segue
+// existindo só como identificador do disparo (útil pra rastrear/depurar), não é
+// mais usado por nenhum processo externo pra buscar linhas pendentes.
 export async function enviarCobrancas(
   items: { student_id: string; full_name: string; telephone: string; valor: number }[]
 ) {
@@ -121,10 +184,26 @@ export async function enviarCobrancas(
       mensagem: renderTemplateCobranca(item.full_name.split(" ")[0], item.valor),
     }));
 
-    const { error } = await supabase
+    // Cria a linha espelho em whatsapp_messages ANTES do insert em
+    // whatsapp_cobrancas_agendadas, pra guardar o id dela como mirror_message_id -
+    // é esse vínculo que permite atualizar o espelho de "pending" pra "sent"/"failed"
+    // depois do envio de verdade, mais abaixo.
+    const itemsComMirror = await Promise.all(
+      itemsComMensagem.map(async (item) => {
+        const mirror = await logOutboundCobranca({
+          student_id: item.student_id,
+          telephone: item.telephone,
+          display_name: item.full_name,
+          content: item.mensagem,
+        });
+        return { ...item, mirror_message_id: mirror.messageId ?? null };
+      })
+    );
+
+    const { data: agendamentos, error } = await supabase
       .from("whatsapp_cobrancas_agendadas")
       .insert(
-        itemsComMensagem.map((item) => ({
+        itemsComMirror.map((item) => ({
           student_id: item.student_id,
           full_name: item.full_name,
           telephone: item.telephone,
@@ -133,45 +212,22 @@ export async function enviarCobrancas(
           scheduled_date: hoje,
           status: "pending",
           lote_id: loteId,
+          mirror_message_id: item.mirror_message_id,
         }))
-      );
+      )
+      .select("id, telephone, full_name, valor, mirror_message_id");
 
     if (error) throw error;
     revalidatePath("/dashboard/account");
+    revalidatePath("/dashboard/mensagens");
 
-    // Espelha cada cobrança no histórico unificado de conversas (tela
-    // Mensagens), pra o gestor ver o que foi mandado pra cada aluno junto
-    // com as respostas dele. Best-effort - não pode travar a régua de
-    // cobrança em si.
-    await Promise.all(
-      itemsComMensagem.map((item) =>
-        logOutboundCobranca({
-          student_id: item.student_id,
-          telephone: item.telephone,
-          display_name: item.full_name,
-          content: item.mensagem,
-        })
-      )
-    );
-
-    const webhookUrl = process.env.WHATSAPP_N8N_WEBHOOK_URL;
-
-    if (!webhookUrl) {
-      console.error("WHATSAPP_N8N_WEBHOOK_URL não configurada no .env");
-      return { result: "erro", details: "As cobranças foram registradas, mas o envio automático não está configurado. Contate o suporte técnico." };
-    }
-
-    try {
-      const response = await fetch(webhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lote_id: loteId }),
-      });
-      if (!response.ok) {
-        return { result: "erro", details: `As cobranças foram registradas, mas o webhook do N8N retornou status ${response.status}.` };
-      }
-    } catch (webhookErr: any) {
-      return { result: "erro", details: `As cobranças foram registradas, mas não foi possível acionar o envio automático: ${webhookErr.message}` };
+    // Envia de verdade via Graph API, em lotes concorrentes (ver
+    // processarEnvioCobranca/WHATSAPP_SEND_CONCURRENCY acima). Cada lote espera
+    // terminar antes do próximo começar; uma falha isolada não derruba os outros.
+    const fila = (agendamentos ?? []) as AgendamentoParaEnvio[];
+    for (let i = 0; i < fila.length; i += WHATSAPP_SEND_CONCURRENCY) {
+      const lote = fila.slice(i, i + WHATSAPP_SEND_CONCURRENCY);
+      await Promise.all(lote.map((row) => processarEnvioCobranca(row, supabase)));
     }
 
     const ignorados = items.length - itemsParaEnviar.length;

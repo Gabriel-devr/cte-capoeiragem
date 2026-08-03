@@ -4,6 +4,8 @@ import { createClientServer, supabaseAdm } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { assertAdmin } from "@/lib/authGuard";
 import { buildWaId } from "@/utils/formatters";
+import { sendTextMessage } from "@/lib/whatsapp/client";
+import { findOrCreateConversation } from "@/lib/whatsapp/conversations";
 
 const JANELA_24H_MS = 24 * 60 * 60 * 1000;
 
@@ -125,11 +127,10 @@ export async function listMessages(conversation_id: string) {
   }
 }
 
-// Grava a resposta como "pending" e aciona o webhook do n8n responsável pelo
-// envio de verdade via Graph API - mesmo padrão do enviarCobrancas em
-// whatsapp_data.ts (o app nunca fala direto com a Graph API, só delega pro
-// n8n). Enquanto esse workflow de envio não existir, a mensagem continua
-// sendo salva normalmente; só o disparo automático fica pendente.
+// Grava a resposta como "pending" e envia de verdade via Graph API na hora - só é
+// chamada quando a janela de 24h está aberta (checado abaixo), então é sempre texto
+// livre. A UI reflete o status final (sent/failed) via Supabase Realtime, sem
+// precisar de polling.
 export async function sendReply(conversation_id: string, wa_id: string, content: string) {
   try {
     const supabase = await createClientServer();
@@ -183,38 +184,25 @@ export async function sendReply(conversation_id: string, wa_id: string, content:
 
     revalidatePath("/dashboard/mensagens");
 
-    const webhookUrl = process.env.WHATSAPP_N8N_REPLY_WEBHOOK_URL;
-    if (!webhookUrl) {
-      console.error("WHATSAPP_N8N_REPLY_WEBHOOK_URL não configurada no .env");
+    const sendResult = await sendTextMessage({ to: wa_id, body: texto });
+
+    if (!sendResult.ok) {
+      await supabase.from("whatsapp_messages").update({ status: "failed" }).eq("id", inserted.id);
       return {
         result: "sucesso",
-        message: inserted as MessageItem,
-        aviso: "Mensagem salva, mas o envio automático ainda não está configurado. Contate o suporte técnico.",
+        message: { ...inserted, status: "failed" } as MessageItem,
+        aviso: `Mensagem salva, mas o envio falhou: ${sendResult.error}`,
       };
     }
 
-    try {
-      const response = await fetch(webhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message_id: inserted.id, wa_id, content: texto }),
-      });
-      if (!response.ok) {
-        return {
-          result: "sucesso",
-          message: inserted as MessageItem,
-          aviso: `Mensagem salva, mas o webhook do n8n retornou status ${response.status}.`,
-        };
-      }
-    } catch (webhookErr: any) {
-      return {
-        result: "sucesso",
-        message: inserted as MessageItem,
-        aviso: `Mensagem salva, mas não foi possível acionar o envio automático: ${webhookErr.message}`,
-      };
-    }
+    const { data: sent } = await supabase
+      .from("whatsapp_messages")
+      .update({ status: "sent", whatsapp_message_id: sendResult.whatsappMessageId })
+      .eq("id", inserted.id)
+      .select(MESSAGE_COLUMNS)
+      .single();
 
-    return { result: "sucesso", message: inserted as MessageItem };
+    return { result: "sucesso", message: (sent ?? inserted) as MessageItem };
   } catch (err: any) {
     return { result: "erro", details: err.message };
   }
@@ -227,79 +215,59 @@ async function findOrCreateConversationForStudent(
   const waId = buildWaId(params.telephone);
   if (!waId) return null;
 
-  // .limit(1) em vez de .maybeSingle(): se ainda houver conversas duplicadas
-  // pro mesmo wa_id (lixo de antes do fix do workflow n8n de recebimento),
-  // .maybeSingle() lançaria erro por encontrar mais de uma linha - e como
-  // essa função é best-effort, esse erro seria engolido silenciosamente,
-  // fazendo a cobrança nunca aparecer no histórico sem explicação nenhuma.
-  const { data: matches, error: findError } = await supabase
-    .from("whatsapp_conversations")
-    .select("id, student_id")
-    .eq("wa_id", waId)
-    .order("created_at", { ascending: true })
-    .limit(1);
-
-  if (findError) throw findError;
-  const existing = matches?.[0];
-
-  if (existing) {
-    // Conversa já existia (ex: aluno já tinha mandado mensagem antes de ser
-    // cadastrado) mas ainda sem student_id - aproveita e vincula agora.
-    if (!existing.student_id) {
-      await supabase.from("whatsapp_conversations").update({ student_id: params.student_id }).eq("id", existing.id);
-    }
-    return existing.id;
-  }
-
-  const { data: created, error: createError } = await supabase
-    .from("whatsapp_conversations")
-    .insert({
-      student_id: params.student_id,
-      wa_id: waId,
-      display_name: params.display_name,
-      last_message_at: new Date().toISOString(),
-    })
-    .select("id")
-    .single();
-
-  if (createError) throw createError;
-  return created.id;
+  // Best-effort: se essa chamada lançar, o caller (logOutboundCobranca) engole o
+  // erro - a cobrança em si já ficou registrada em whatsapp_cobrancas_agendadas
+  // independente disso.
+  return findOrCreateConversation(supabase, {
+    waId,
+    studentId: params.student_id,
+    displayName: params.display_name,
+  });
 }
 
-// Espelha no histórico unificado (whatsapp_messages) uma cobrança disparada
-// pela régua automática de whatsapp_data.ts, pra ela aparecer junto com o
-// resto da conversa do aluno na tela de Mensagens. Best-effort: se falhar
-// (ex: telefone inválido, RLS ainda não configurado), não deve travar o
-// envio da cobrança em si - que já ficou registrado em
-// whatsapp_cobrancas_agendadas independente disso. Fica como "pending" até
-// que o workflow n8n que efetivamente envia a cobrança também atualize esse
-// status (ainda não faz isso hoje).
+// Espelha no histórico unificado (whatsapp_messages) uma cobrança disparada pela
+// régua automática de whatsapp_data.ts, pra ela aparecer junto com o resto da
+// conversa do aluno na tela de Mensagens. Best-effort: se falhar (ex: telefone
+// inválido, RLS ainda não configurado), não deve travar o envio da cobrança em si -
+// que já ficou registrado em whatsapp_cobrancas_agendadas independente disso.
+// O messageId retornado é gravado por enviarCobrancas como mirror_message_id na
+// linha de whatsapp_cobrancas_agendadas, pra depois do envio de verdade essa linha
+// espelho também ser atualizada de "pending" pra "sent"/"failed".
 export async function logOutboundCobranca(params: {
   student_id: string;
   telephone: string | null;
   display_name: string;
   content: string;
-}) {
+}): Promise<{ ok: boolean; messageId?: string }> {
   try {
     const supabase = await createClientServer();
     const guard = await assertAdmin(supabase);
-    if (!guard.ok) return;
+    if (!guard.ok) return { ok: false };
 
     const conversationId = await findOrCreateConversationForStudent(supabase, params);
-    if (!conversationId) return;
+    if (!conversationId) return { ok: false };
 
     const agora = new Date().toISOString();
 
-    await supabase.from("whatsapp_messages").insert({
-      conversation_id: conversationId,
-      direction: "out",
-      content: params.content,
-      status: "pending",
-      wa_timestamp: agora,
-    });
+    const { data: inserted, error } = await supabase
+      .from("whatsapp_messages")
+      .insert({
+        conversation_id: conversationId,
+        direction: "out",
+        content: params.content,
+        status: "pending",
+        wa_timestamp: agora,
+      })
+      .select("id")
+      .single();
+
+    if (error) throw error;
 
     await supabase.from("whatsapp_conversations").update({ last_message_at: agora }).eq("id", conversationId);
+
+    return { ok: true, messageId: inserted.id };
   } catch (err) {
     console.error("Falha ao espelhar cobrança em whatsapp_messages:", err);
+    return { ok: false };
   }
 }

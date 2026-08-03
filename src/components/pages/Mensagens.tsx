@@ -49,6 +49,25 @@ function dataOuHora(iso: string) {
   return mesmoDia ? horaCurta(iso) : data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 }
 
+function ehMesmoDia(a: Date, b: Date) {
+  return a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+}
+
+// Rótulo do divisor de data na thread (padrão WhatsApp: "Hoje"/"Ontem"/data
+// cheia) - sem isso, uma conversa com dias de intervalo fica com todas as
+// mensagens misturadas, só com hora, sem indicar quando o dia mudou.
+function rotuloData(iso: string) {
+  const data = new Date(iso);
+  const hoje = new Date();
+  if (ehMesmoDia(data, hoje)) return "Hoje";
+
+  const ontem = new Date(hoje);
+  ontem.setDate(hoje.getDate() - 1);
+  if (ehMesmoDia(data, ontem)) return "Ontem";
+
+  return data.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+}
+
 // Conteúdo da mensagem varia com message_type - imagem/áudio/documento vêm do
 // bucket privado whatsapp-media, já resolvidos como Signed URL (media_url)
 // pelo listMessages(). Sem media_url (signed url falhou ou ainda não
@@ -217,7 +236,7 @@ export function Mensagens() {
   return (
     <div className="bg-card border border-border rounded-xl shadow-lg overflow-hidden h-[calc(100vh-8rem)] min-h-[500px] flex">
       {/* Lista de conversas */}
-      <div className="w-full sm:w-80 shrink-0 border-r border-border flex flex-col">
+      <div className="w-full sm:w-80 shrink-0 border-r border-border flex flex-col min-h-0">
         <div className="p-4 border-b border-border space-y-3">
           <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
             <MessagesSquare className="w-5 h-5 text-accent" /> Mensagens
@@ -233,7 +252,7 @@ export function Mensagens() {
           </div>
         </div>
 
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           {isLoadingConversations ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 text-accent animate-spin" />
@@ -286,7 +305,7 @@ export function Mensagens() {
       </div>
 
       {/* Thread */}
-      <div className="hidden sm:flex flex-1 flex-col min-w-0">
+      <div className="hidden sm:flex flex-1 flex-col min-w-0 min-h-0">
         {!conversaSelecionada ? (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
             <MessagesSquare className="w-10 h-10" />
@@ -306,7 +325,7 @@ export function Mensagens() {
               </div>
             </div>
 
-            <ScrollArea className="flex-1 px-4">
+            <ScrollArea className="flex-1 px-4 min-h-0">
               {isLoadingMessages ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-6 h-6 text-accent animate-spin" />
@@ -315,25 +334,40 @@ export function Mensagens() {
                 <p className="text-sm text-muted-foreground text-center py-12">Nenhuma mensagem ainda.</p>
               ) : (
                 <div className="py-4 space-y-2">
-                  {messages.map((m) => (
-                    <div key={m.id} className={`flex ${m.direction === "out" ? "justify-end" : "justify-start"}`}>
-                      <div
-                        className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${
-                          m.direction === "out" ? "bg-accent text-white" : "bg-muted text-foreground"
-                        }`}
-                      >
-                        <MessageBody m={m} />
-                        <div
-                          className={`flex items-center gap-1 mt-1 text-[10px] ${
-                            m.direction === "out" ? "text-white/80 justify-end" : "text-muted-foreground"
-                          }`}
-                        >
-                          <span>{horaCurta(m.wa_timestamp)}</span>
-                          {m.direction === "out" && <StatusIcon status={m.status} />}
+                  {messages.map((m, i) => {
+                    const anterior = messages[i - 1];
+                    const mostrarDivisorData =
+                      !anterior || !ehMesmoDia(new Date(m.wa_timestamp), new Date(anterior.wa_timestamp));
+
+                    return (
+                      <div key={m.id}>
+                        {mostrarDivisorData && (
+                          <div className="flex justify-center my-3">
+                            <span className="text-xs font-medium text-muted-foreground bg-muted rounded-full px-3 py-1">
+                              {rotuloData(m.wa_timestamp)}
+                            </span>
+                          </div>
+                        )}
+                        <div className={`flex ${m.direction === "out" ? "justify-end" : "justify-start"}`}>
+                          <div
+                            className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${
+                              m.direction === "out" ? "bg-accent text-white" : "bg-muted text-foreground"
+                            }`}
+                          >
+                            <MessageBody m={m} />
+                            <div
+                              className={`flex items-center gap-1 mt-1 text-[10px] ${
+                                m.direction === "out" ? "text-white/80 justify-end" : "text-muted-foreground"
+                              }`}
+                            >
+                              <span>{horaCurta(m.wa_timestamp)}</span>
+                              {m.direction === "out" && <StatusIcon status={m.status} />}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   <div ref={bottomRef} />
                 </div>
               )}
