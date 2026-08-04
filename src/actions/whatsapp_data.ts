@@ -1,7 +1,7 @@
 "use server"
 
 import { randomUUID } from "crypto";
-import { createClientServer } from "@/lib/supabase/server";
+import { createClientServer, supabaseAdm } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { assertAdmin } from "@/lib/authGuard";
 import { logOutboundCobranca } from "./whatsapp_messages_data";
@@ -54,9 +54,11 @@ async function processarEnvioCobranca(row: AgendamentoParaEnvio, supabase: Supab
 
     // Reflete o mesmo resultado na linha espelho de whatsapp_messages (tela
     // Mensagens), senão ela fica presa em "pending" pra sempre mesmo com a
-    // cobrança já enviada/falhada de verdade.
+    // cobrança já enviada/falhada de verdade. Usa supabaseAdm (Service Role):
+    // a RLS de whatsapp_messages só libera escrita pro Service Role, então
+    // com o client de sessão esse update falhava sempre, silenciosamente.
     if (row.mirror_message_id) {
-      await supabase
+      await supabaseAdm
         .from("whatsapp_messages")
         .update({
           status,

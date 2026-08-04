@@ -9,8 +9,6 @@ import { findOrCreateConversation } from "@/lib/whatsapp/conversations";
 
 const JANELA_24H_MS = 24 * 60 * 60 * 1000;
 
-type SupabaseServerClient = Awaited<ReturnType<typeof createClientServer>>;
-
 export interface ConversationListItem {
   id: string;
   student_id: string | null;
@@ -161,7 +159,12 @@ export async function sendReply(conversation_id: string, wa_id: string, content:
 
     const agora = new Date().toISOString();
 
-    const { data: inserted, error: insertError } = await supabase
+    // supabaseAdm (Service Role) a partir daqui: mesma razão do
+    // findOrCreateConversationForStudent acima - RLS dessas tabelas só libera
+    // escrita pro Service Role, então com o client de sessão essas
+    // gravações falhavam silenciosamente e a mensagem ficava presa em
+    // "pending" pra sempre mesmo enviada com sucesso pela Graph API.
+    const { data: inserted, error: insertError } = await supabaseAdm
       .from("whatsapp_messages")
       .insert({
         conversation_id,
@@ -175,7 +178,7 @@ export async function sendReply(conversation_id: string, wa_id: string, content:
 
     if (insertError) throw insertError;
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdm
       .from("whatsapp_conversations")
       .update({ last_message_at: agora })
       .eq("id", conversation_id);
@@ -187,7 +190,7 @@ export async function sendReply(conversation_id: string, wa_id: string, content:
     const sendResult = await sendTextMessage({ to: wa_id, body: texto });
 
     if (!sendResult.ok) {
-      await supabase.from("whatsapp_messages").update({ status: "failed" }).eq("id", inserted.id);
+      await supabaseAdm.from("whatsapp_messages").update({ status: "failed" }).eq("id", inserted.id);
       return {
         result: "sucesso",
         message: { ...inserted, status: "failed" } as MessageItem,
@@ -195,7 +198,7 @@ export async function sendReply(conversation_id: string, wa_id: string, content:
       };
     }
 
-    const { data: sent } = await supabase
+    const { data: sent } = await supabaseAdm
       .from("whatsapp_messages")
       .update({ status: "sent", whatsapp_message_id: sendResult.whatsappMessageId })
       .eq("id", inserted.id)
@@ -209,16 +212,18 @@ export async function sendReply(conversation_id: string, wa_id: string, content:
 }
 
 async function findOrCreateConversationForStudent(
-  supabase: SupabaseServerClient,
   params: { student_id: string; telephone: string | null; display_name: string }
 ): Promise<string | null> {
   const waId = buildWaId(params.telephone);
   if (!waId) return null;
 
-  // Best-effort: se essa chamada lançar, o caller (logOutboundCobranca) engole o
-  // erro - a cobrança em si já ficou registrada em whatsapp_cobrancas_agendadas
-  // independente disso.
-  return findOrCreateConversation(supabase, {
+  // Usa supabaseAdm (Service Role) em vez do client de sessão do admin: as
+  // policies de RLS de whatsapp_conversations/whatsapp_messages só liberam
+  // escrita pro Service Role (mesmo client usado pela rota de webhook), então
+  // criar uma conversa nova por aqui com o client de sessão falhava sempre -
+  // best-effort silencioso, então nunca aparecia erro nenhum, só a conversa
+  // não era criada e a cobrança sumia da tela Mensagens.
+  return findOrCreateConversation(supabaseAdm, {
     waId,
     studentId: params.student_id,
     displayName: params.display_name,
@@ -244,12 +249,12 @@ export async function logOutboundCobranca(params: {
     const guard = await assertAdmin(supabase);
     if (!guard.ok) return { ok: false };
 
-    const conversationId = await findOrCreateConversationForStudent(supabase, params);
+    const conversationId = await findOrCreateConversationForStudent(params);
     if (!conversationId) return { ok: false };
 
     const agora = new Date().toISOString();
 
-    const { data: inserted, error } = await supabase
+    const { data: inserted, error } = await supabaseAdm
       .from("whatsapp_messages")
       .insert({
         conversation_id: conversationId,
@@ -263,7 +268,7 @@ export async function logOutboundCobranca(params: {
 
     if (error) throw error;
 
-    await supabase.from("whatsapp_conversations").update({ last_message_at: agora }).eq("id", conversationId);
+    await supabaseAdm.from("whatsapp_conversations").update({ last_message_at: agora }).eq("id", conversationId);
 
     return { ok: true, messageId: inserted.id };
   } catch (err) {
