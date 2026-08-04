@@ -57,6 +57,28 @@ async function comMediaUrl(mensagens: MessageItem[]): Promise<MessageItem[]> {
   );
 }
 
+// Resolve só a Signed URL de uma mídia específica - usado pra completar, no
+// client, uma mensagem que chegou pelo canal Realtime (o payload cru do
+// Postgres não tem media_url, só listMessages/comMediaUrl calcula isso).
+// Evita ter que recarregar a conversa inteira só pra exibir uma imagem/áudio/
+// documento novo.
+export async function resolveMediaUrl(media_path: string) {
+  try {
+    const supabase = await createClientServer();
+    const guard = await assertAdmin(supabase);
+    if (!guard.ok) return { result: "erro", details: guard.details };
+
+    const { data, error } = await supabaseAdm.storage
+      .from("whatsapp-media")
+      .createSignedUrl(media_path, MEDIA_SIGNED_URL_TTL_SECONDS);
+
+    if (error) throw error;
+    return { result: "sucesso", media_url: data.signedUrl };
+  } catch (err: any) {
+    return { result: "erro", details: err.message };
+  }
+}
+
 export async function listConversations() {
   try {
     const supabase = await createClientServer();

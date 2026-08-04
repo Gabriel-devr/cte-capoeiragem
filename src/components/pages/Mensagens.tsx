@@ -12,6 +12,7 @@ import { Button } from "../ui/button";
 import {
   listConversations,
   listMessages,
+  resolveMediaUrl,
   sendReply,
   type ConversationListItem,
   type MessageItem,
@@ -182,8 +183,21 @@ export function Mensagens() {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_messages", filter: `conversation_id=eq.${selectedId}` },
-        (payload) => {
+        async (payload) => {
           const nova = payload.new as MessageItem;
+
+          // Mensagem de mídia: o payload cru do Realtime não tem media_url (essa
+          // Signed URL só é calculada no servidor, por listMessages/comMediaUrl) -
+          // sem isso a bolha de imagem/áudio/documento chega vazia. Resolve só a
+          // URL dessa mensagem em vez de recarregar a conversa inteira (evita o
+          // spinner de carregamento apagando a thread por um instante).
+          if (nova.media_path) {
+            const res = await resolveMediaUrl(nova.media_path);
+            const media_url = (res.result === "sucesso" ? res.media_url : null) ?? null;
+            setMessages((prev) => (prev.some((m) => m.id === nova.id) ? prev : [...prev, { ...nova, media_url }]));
+            return;
+          }
+
           setMessages((prev) => (prev.some((m) => m.id === nova.id) ? prev : [...prev, nova]));
         }
       )
